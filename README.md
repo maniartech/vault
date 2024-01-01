@@ -67,13 +67,13 @@ vault.init('myDatabase', 'myStore');
 
 ### Setting Values
 
-Store data using the `set` method, indexer syntax, or dot notation:
+Store data using the `setItem` method, indexer syntax, or dot notation:
 
 ```javascript
 
  // For set operation you can ignore await unless you want to wait for the
  // operation to complete or you want to catch any errors.
-vault.set('yourKey', { any: 'data' });
+vault.setItem('yourKey', { any: 'data' });
 
 // Indexer syntax.
 vault['yourKey'] = { any: 'data' };
@@ -84,12 +84,12 @@ vault.yourKey = { any: 'data' };
 
 ### Getting Values
 
-Retrieve data using the `get` method, indexer syntax, or dot notation. For get
+Retrieve data using the `getItem` method, indexer syntax, or dot notation. For get
 operations you must use await as it's asynchronous.
 
 ```javascript
-// Get the value using the get method.
-const data = await vault.get('yourKey');
+// Get the value using the getItem method.
+const data = await vault.getItem('yourKey');
 
 // Indexer syntax.
 const data = await vault['yourKey'];
@@ -100,11 +100,11 @@ const data = await vault.yourKey;
 
 ### Removing Values
 
-Remove data using the `remove` method:
+Remove data using the `removeItem` method:
 
 ```javascript
 // Remove the value using the remove method.
-vault.remove('yourKey');
+vault.removeItem('yourKey');
 
 // Indexer syntax.
 delete vault['yourKey'];
@@ -132,10 +132,9 @@ console.log(count);
 
 ## API Reference
 
-- `init(database?: IDBDatabase, store?: string)`: Initialize the database. Optional custom database and store name can be provided.
-- `set(key: string, value: any)`: Store data in the database.
-- `get(key: string)`: Retrieve data from the database.
-- `remove(key: string)`: Remove data from the database.
+- `setItem(key: string, value: any)`: Store data in the database.
+- `getItem(key: string)`: Retrieve data from the database.
+- `removeItem(key: string)`: Remove data from the database.
 - `clear()`: Clear all data from the database.
 - `length()`: Get the count of entries in the database.
 

@@ -12,21 +12,22 @@ const storeName = "vault"
  */
 const vault = new Proxy({
   /**
-   * Set a value in the store.
+   * Sets a value in the store.
    * @param {string} key - The key to set.
    * @param {any} value - The value to set.
    * @returns {Promise<void>}
    */
-  async set(key: string, value: any): Promise<void> {
+  async setItem(key: string, value: any): Promise<void> {
     return $(RW, store => store.put({ key, value }));
   },
+
 
   /**
    * Get a value from the store.
    * @param {string} key - The key to get.
    * @returns {Promise<any>} - The value associated with the key, or null if not found.
    */
-  async get(key: string): Promise<any> {
+  async getItem(key: string): Promise<any> {
     return $(R, store => store.get(key))
         .then(result => result ? result.value : null);
   },
@@ -36,7 +37,7 @@ const vault = new Proxy({
    * @param {string} key - The key to remove.
    * @returns {Promise<void>}
    */
-  async remove(key: string): Promise<void> {
+  async removeItem(key: string): Promise<void> {
     return $(RW, store => store.delete(key));
   },
 
@@ -62,7 +63,7 @@ const vault = new Proxy({
    * Otherwise, get the value from the store.
    */
   get(target: any, key: string) {
-    return target.get(key);
+    return target[key] || target.getItem(key);
   },
 
   /**
@@ -71,7 +72,7 @@ const vault = new Proxy({
    * Otherwise, set the value in the store.
    */
   set(target: any, key: string, value: any) {
-    target.set(key, value);
+    target.setItem(key, value);
     return true; // Return true immediately, indicating the set was "handled"
   },
 
@@ -80,7 +81,7 @@ const vault = new Proxy({
    * Deletes the value from the store.
    */
   deleteProperty(target, key) {
-    return target.remove(key);
+    return target.removeItem(key);
   }
 });
 
