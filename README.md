@@ -53,18 +53,6 @@ const value1 = await vault.key1; // "value1"
 const value2 = await vault.key2; // "value2"
 ```
 
-However, if you want to change the default database and store names, you can
-initialize the `vault` with your custom database and store names before using
-it.
-
-```javascript
-// Initialize the vault with custom database and store names.
-vault.init('myDatabase', 'myStore');
-```
-
-> **Note:** This will change the default database and store names for all
-> instances of `vault` in your application.
-
 ### Setting Values
 
 Store data using the `setItem` method, indexer syntax, or dot notation:
