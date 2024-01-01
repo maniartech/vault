@@ -1,6 +1,6 @@
 {
   "name": "vault-storage",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Vault, a tiny yet robuts storage library for your browser applications",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
