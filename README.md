@@ -135,8 +135,6 @@ console.log(count);
 | **Data Types**           | Supports structured data, including objects and arrays | Only stores strings    |
 | **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
 | **Transaction Support**  | Complete transaction support for reliable data operations | None                  |
-| **Query Capabilities**   | Complex querying and indexing | Only key-based access   |
-| **Data Integrity**       | Robust with versioning and error handling | Prone to data conflicts |
 
 ## Contributing
 
