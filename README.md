@@ -9,7 +9,7 @@ client-side data storage efficient and scalable.
 ## Features
 
 - **Similar API**: Easy to use, similar to LocalStorage.
-- **Lightweight**: No dependencies, small footprint (~800 bytes minified, ~400 bytes gzipped).
+- **Lightweight**: No dependencies, micro footprint (~800 bytes minified, ~400 bytes gzipped).
 - **Asynchronous**: Non-blocking, asynchronous API.
 - **Structured Data**: Supports structured data, including objects and arrays.
 
