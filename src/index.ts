@@ -1,6 +1,6 @@
 // Constants for read and write operations
-const RW = 'readwrite'
-const R = 'readonly'
+const rw = 'readwrite'
+const r = 'readonly'
 
 // The database instance
 let db = null as IDBDatabase | null
@@ -18,7 +18,7 @@ const vault = new Proxy({
    * @returns {Promise<void>}
    */
   async setItem(key: string, value: any): Promise<void> {
-    return $(RW, store => store.put({ key, value }));
+    return $(rw, store => store.put({ key, value }));
   },
 
 
@@ -28,7 +28,7 @@ const vault = new Proxy({
    * @returns {Promise<any>} - The value associated with the key, or null if not found.
    */
   async getItem(key: string): Promise<any> {
-    return $(R, store => store.get(key))
+    return $(r, store => store.get(key))
         .then(result => result ? result.value : null);
   },
 
@@ -38,7 +38,7 @@ const vault = new Proxy({
    * @returns {Promise<void>}
    */
   async removeItem(key: string): Promise<void> {
-    return $(RW, store => store.delete(key));
+    return $(rw, store => store.delete(key));
   },
 
   /**
@@ -46,7 +46,7 @@ const vault = new Proxy({
    * @returns {Promise<void>}
    */
   async clear(): Promise<void> {
-    return $(RW, store => store.clear());
+    return $(rw, store => store.clear());
   },
 
   /**
@@ -54,7 +54,7 @@ const vault = new Proxy({
    * @returns {Promise<number>} - The number of key-value pairs in the store.
    */
   async length(): Promise<number> {
-    return $(R, store => store.count());
+    return $(r, store => store.count());
   }
 }, {
   /**
@@ -87,7 +87,6 @@ const vault = new Proxy({
 
 /**
  * Perform a database operation.
- * @param {typeof vault} v - The vault instance.
  * @param {string} operationType - The type of operation (read or write).
  * @param {(store: IDBObjectStore) => IDBRequest} operation - The operation to perform.
  * @returns {Promise<any>} - The result of the operation.
@@ -104,7 +103,7 @@ async function $(
       .objectStore(storeName) // store
     );
 
-    request.onsuccess = () => resolve(operationType === R ? request.result : void 0)
+    request.onsuccess = () => resolve(operationType === r ? request.result : void 0)
     request.onerror = (event) => reject(event);
   });
 }
@@ -135,4 +134,4 @@ async function initDB(dbName:string, storeName: string): Promise<IDBDatabase> {
 }
 
 // Export the vault object
-export default vault
+export default Object.freeze(vault);
