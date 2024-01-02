@@ -1,48 +1,31 @@
 {
-  "name": "vault-storage",
-  "version": "1.0.7",
-  "description": "Vault, a tiny yet robuts storage library for your browser applications",
-  "main": "dist/index.js",
-  "types": "typings/index.d.ts",
-  "keywords": [
-    "vault",
-    "vault-storage",
-    "storage",
-    "storage",
-    "indexeddb",
-    "database",
-    "client-storage",
-    "key-value",
-    "offline-storage",
-    "web-storage",
-    "data-persistence",
-    "proxy",
-    "asynchronous",
-    "browser-database",
-    "local-storage",
-    "data-management",
-    "browser-storage",
-    "idb",
-    "nosql",
-    "indexdb-wrapper",
-    "data-cache",
-    "javascript-storage",
-    "persistent-storage"
-  ],
-  "scripts": {
-    "test": "karma start",
-    "watch": "tsc -w"
-  },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "jsdom"
-  },
-  "author": "ManiarTech®️ - Mohamed Aamir Maniar",
-  "license": "ISC",
-  "repository": {
+  "name"        : "vault-storage",
+  "description" : "Vault, a micro yet robust browser storage library",
+  "version"     : "1.0.9",
+  "author"      : "ManiarTech®️ - Mohamed Aamir Maniar",
+  "license"     : "MIT",
+  "repository"  : {
     "type": "git",
     "url": "git@github.com:maniartech/vault.git"
   },
+
+  "keywords": [
+    "vault",        "vault-storage",      "storage",    "indexeddb",  "idb",
+    "database",     "client-storage",     "key-value",  "offline-storage",
+    "web-storage",  "data-persistence",   "proxy",      "asynchronous",
+    "local-storage","data-management",    "browser-database",
+    "nosql",        "indexdb-wrapper",    "browser-storage",
+    "data-cache",   "javascript-storage", "persistent-storage"
+  ],
+
+  "main"    : "dist/index.js",
+  "types"   : "typings/index.d.ts",
+
+  "scripts" : {
+    "test": "karma start",
+    "watch": "tsc -w"
+  },
+
   "devDependencies": {
     "@types/jasmine": "^5.1.4",
     "@types/node": "^20.10.6",
