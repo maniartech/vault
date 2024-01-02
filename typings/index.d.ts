@@ -41,6 +41,10 @@ export interface IVault {
    * @returns A promise that resolves with the count of entries.
    */
   length(): Promise<number>;
+
+
+  // Keys and values can also be accessed directly on the vault object
+  [key: VaultKey]: VaultValue;
 }
 
 // Declaration of the vault object implementing the IVault interface
