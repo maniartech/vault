@@ -1,6 +1,3 @@
-// Types for the keys and values stored in the vault
-type VaultKey = string;
-type VaultValue = any; // Replace 'any' with a more specific type if applicable
 
 /**
  * Interface for the vault storage.
@@ -14,21 +11,21 @@ export interface IVault {
    * @param value - The value to be stored.
    * @returns A promise that resolves when the operation is complete.
    */
-  setItem(key: VaultKey, value: VaultValue): Promise<void>;
+  setItem(key: string, value: any): Promise<void>;
 
   /**
    * Retrieves a value from the store.
    * @param key - The key of the value to retrieve.
    * @returns A promise that resolves with the retrieved value.
    */
-  getItem(key: VaultKey): Promise<VaultValue>;
+  getItem(key: string): Promise<any>;
 
   /**
    * Removes an item from the store.
    * @param key - The key of the item to remove.
    * @returns A promise that resolves when the operation is complete.
    */
-  removeItem(key: VaultKey): Promise<void>;
+  removeItem(key: string): Promise<void>;
 
   /**
    * Clears all entries in the store.
@@ -44,7 +41,7 @@ export interface IVault {
 
 
   // Keys and values can also be accessed directly on the vault object
-  [key: VaultKey]: VaultValue;
+  [key: string]: any;
 }
 
 // Declaration of the vault object implementing the IVault interface
