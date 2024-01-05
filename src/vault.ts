@@ -1,56 +1,55 @@
-import Middleware from "./middleware"
+import Middleware from "./middleware";
 
-const rw = 'readwrite'
-const r = 'readonly'
+const r = 'readonly', rw = 'readwrite';
 
 class Vault {
+  #n = location.host; #s = 'vault';
+  #d: IDBDatabase | null = null; #m: Middleware[] = [];
 
-  constructor(d:string = location.host, s:string = 'vault') {
-    this.#init(d, s).then(db => this.#d = db)
-    return Object.freeze(new Proxy(this, proxyHandler))
+  // Fake custom properties support. Custom properties are stored in the
+  // indexdb as key/value pairs. This is a workaround to allow custom
+  // properties to be set and retrieved as if they were native properties.
+  [key: string]: any;
+
+  constructor(dn: string, s: string) {
+    this.#n = dn || this.#n;
+    this.#s = s  || this.#s;
+    return new Proxy(this, proxyHandler);
   }
 
-  // read-write operations
-  async setItem(key: string, value: any)  : Promise<void> {return this.#do(rw, s => s.put({ key, value }))}
-  async removeItem(key: string)           : Promise<void> {return this.#do(rw, s => s.delete(key))}
-  async clear()                           : Promise<void> {return this.#do(rw, s => s.clear())}
+  setItem     = async (key: string, value: any) => this.#do(rw, store => store.put({ key, value }))
+  getItem     = async (key: string) => this.#do(r, store => store.get(key)).then(result => result?.value ?? null)
+  removeItem  = async (key: string) => this.#do(rw, store => store.delete(key))
+  clear       = async () => this.#do(rw, store => store.clear())
+  keys        = async () => this.#do(r, store => store.getAllKeys())
+  length      = async () => this.#do(r, store => store.count())
 
-  // read-only operations
-  async getItem(key: string)              : Promise<any>      {return this.#do(r, s => s.get(key)).then(result => result ? result.value : null)}
-  async length()                          : Promise<number>   {return this.#do(r, s => s.count())}
-  async keys()                            : Promise<string[]> {return this.#do(r, s => s.getAllKeys())}
-
-  [key: string]: any
-
-  // Private Area
-  #d = null as IDBDatabase | null; #s = 'vault' // database and store names
-  #m: Middleware[] = []
-
-  async #do(operationType: IDBTransactionMode,operation: (store: IDBObjectStore) => IDBRequest): Promise<any> {
+  #init = async (): Promise<void> => {
     return new Promise((resolve, reject) => {
-      const request = operation(this.#d!.transaction(this.#s, operationType).objectStore(this.#s))
-      request.onsuccess = () => {
-        // middlewares
-        let result = request.result; this.#m.forEach(m => { result = m(result, operation.name) })
-        resolve(operationType === r ? result : void 0)
-      }
-      request.onerror = (event) => reject(event)})
+      const request = indexedDB.open(this.#n, 1);
+      request.onupgradeneeded = (event) => request.result.createObjectStore(this.#s, { keyPath: 'key' })
+      request.onsuccess = () => {this.#d = request.result;resolve()}
+      request.onerror = (event) => reject(event)
+    })
   }
 
-  async #init(dbName:string, storeName: string): Promise<IDBDatabase> {
+  #do = async (operationType: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest): Promise<any> => {
+    if (!this.#d) await this.#init();
+
+    const transaction = this.#d!.transaction(this.#s, operationType);
+    const request     = operation(transaction.objectStore(this.#s));
+
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(dbName, 1)
-      this.#s = storeName
-      request.onupgradeneeded = (event) => {const db = request.result; db.createObjectStore(this.#s, { keyPath: 'key' })}
-      request.onsuccess = (event) => {resolve(request.result)}
-      request.onerror = (event) => {reject(event)}})
+      request.onsuccess = () => resolve(operationType === r ? request.result : undefined);
+      request.onerror   = () => reject(request.error);
+    });
   }
 }
 
 const proxyHandler = {
-  get(target: any, key: string) { return target[key] || target.getItem(key); },
-  set(target: any, key: string, value: any) { target.setItem(key, value); return true;},
-  deleteProperty(target: any, key: any) { return target.removeItem(key); }
-}
+  get(target: any, key: string)             { return (typeof target[key] === 'function') ? target[key].bind(target) : key in target ? target[key] : target.getItem(key) },
+  set(target: any, key: string, value: any) { return target.setItem(key, value) },
+  deleteProperty(target: any, key: string)  { return target.removeItem(key) }
+};
 
-export default Vault
+export default Vault;
