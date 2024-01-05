@@ -104,6 +104,9 @@ dist
 .temp
 .cache
 
+# Temporary backup files
+*.bak
+
 # Docusaurus cache and generated files
 .docusaurus
 
