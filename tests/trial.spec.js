@@ -1,4 +1,4 @@
-import Vault from '../dist/vault.js';
+import Vault from "../dist/src/vault.js";
 
 describe("A suite", () => {
   it("contains a spec with an expectation", async () => {
@@ -31,3 +31,5 @@ describe("A suite", () => {
     expect(await vault.keys()).toEqual([]);
   });
 })
+
+
