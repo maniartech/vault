@@ -1,31 +1,43 @@
 {
-  "name"        : "vault-storage",
-  "description" : "Vault, a micro yet robust browser storage library",
-  "version"     : "1.0.9",
-  "author"      : "ManiarTech®️ - Mohamed Aamir Maniar",
-  "license"     : "MIT",
-  "repository"  : {
+  "name": "vault-storage",
+  "description": "Vault, a micro yet robust browser storage library",
+  "version": "1.0.9",
+  "author": "ManiarTech®️ - Mohamed Aamir Maniar",
+  "license": "MIT",
+  "repository": {
     "type": "git",
     "url": "git@github.com:maniartech/vault.git"
   },
-
   "keywords": [
-    "vault",        "vault-storage",      "storage",    "indexeddb",  "idb",
-    "database",     "client-storage",     "key-value",  "offline-storage",
-    "web-storage",  "data-persistence",   "proxy",      "asynchronous",
-    "local-storage","data-management",    "browser-database",
-    "nosql",        "indexdb-wrapper",    "browser-storage",
-    "data-cache",   "javascript-storage", "persistent-storage"
+    "vault",
+    "vault-storage",
+    "storage",
+    "indexeddb",
+    "idb",
+    "database",
+    "client-storage",
+    "key-value",
+    "offline-storage",
+    "web-storage",
+    "data-persistence",
+    "proxy",
+    "asynchronous",
+    "local-storage",
+    "data-management",
+    "browser-database",
+    "nosql",
+    "indexdb-wrapper",
+    "browser-storage",
+    "data-cache",
+    "javascript-storage",
+    "persistent-storage"
   ],
-
-  "main"    : "dist/index.js",
-  "types"   : "typings/index.d.ts",
-
-  "scripts" : {
-    "test": "karma start",
+  "main": "dist/index.js",
+  "types": "typings/index.d.ts",
+  "scripts": {
+    "test": "karma start karma.conf.js",
     "watch": "tsc -w"
   },
-
   "devDependencies": {
     "@types/jasmine": "^5.1.4",
     "@types/node": "^20.10.6",
@@ -35,6 +47,7 @@
     "karma-firefox-launcher": "^2.1.2",
     "karma-jasmine": "^5.1.0",
     "karma-typescript": "^5.5.4",
+    "karma-spec-reporter": "^0.0.36",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }
