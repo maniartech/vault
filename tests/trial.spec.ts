@@ -1,4 +1,4 @@
-import Vault from "../dist/src/vault.js";
+import Vault from "../src/vault";
 
 describe("A suite", () => {
   it("contains a spec with an expectation", async () => {
