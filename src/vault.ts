@@ -11,7 +11,7 @@ class Vault {
   // properties to be set and retrieved as if they were native properties.
   [key: string]: any;
 
-  constructor(dn?: string, s?: string) {
+  constructor(s?: string, dn?: string) {
     this.#n = dn || this.#n;
     this.#s = s  || this.#s;
     return new Proxy(this, proxyHandler);
