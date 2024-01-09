@@ -7,25 +7,25 @@
     "lib": ["ESNext", "DOM"],
     /* Modules */
     "module": "ESNext",
-    "rootDir": "./",
+    "rootDir": "./src",
     "moduleResolution": "node",
 
     /* Emit */
-    // "declaration": true,
-    "sourceMap": true,
-    "outDir": "./dist",                                       "removeComments": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "removeComments": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    // "moduleResolution": "node",
 
     /* Type Checking */
     "strict": true,
   },
   "include": [
-    "src/**/*.ts",
-    "tests/**/*.spec.ts"
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules", // Exclude the node_modules directory
+    "dist"
   ]
 }
