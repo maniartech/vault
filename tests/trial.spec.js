@@ -1,4 +1,4 @@
-import Vault from "../src/vault";
+import Vault from "../dist/vault.js"
 
 describe("A suite", () => {
   it("contains a spec with an expectation", async () => {
@@ -6,7 +6,7 @@ describe("A suite", () => {
 
     vault.firstName = "John";
     const firstName = await vault.getItem("firstName");
-    expect(firstName).toBe("John");
+    expect(firstName).toBe("John2");
 
     vault.lastName = "Doe";
     const lastName = await vault.getItem("lastName");
