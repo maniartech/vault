@@ -2,7 +2,17 @@ import Middleware from "./middleware";
 
 const r = 'readonly', rw = 'readwrite';
 
-class Vault {
+/**
+ * Vault is an asynchronous key/value store similar to localStorage, but
+ * with the following differences:
+ * - It is asynchronous.
+ * - It provides a middleware mechanism to intercept and modify data.
+ * - It is an extensible class that can be extended to provide additional
+ *   functionality.
+ * - It let to store any type of data, not just strings.
+ * - You can store large amounts of data, not just 5MB.
+ */
+export default class Vault {
   #n = location.host; #s = 'vault';
   #d: IDBDatabase | null = null; #m: Middleware[] = [];
 
@@ -17,12 +27,15 @@ class Vault {
     return new Proxy(this, proxyHandler);
   }
 
-  setItem     = async (key: string, value: any) => this.#do(rw, store => store.put({ key, value }))
-  getItem     = async (key: string) => this.#do(r, store => store.get(key)).then(result => result?.value ?? null)
-  removeItem  = async (key: string) => this.#do(rw, store => store.delete(key))
-  clear       = async () => this.#do(rw, store => store.clear())
-  keys        = async () => this.#do(r, store => store.getAllKeys())
-  length      = async () => this.#do(r, store => store.count())
+  setItem     = async (key: string, value: any): Promise<void>  => this.#do(rw, store => store.put({ key, value }))
+  getItem     = async (key: string): Promise<any>               => this.#do(r, store => store.get(key)).then(result => result?.value ?? null)
+
+
+  removeItem  = async (key: string):Promise<void> => this.#do(rw, store => store.delete(key))
+  clear       = async (): Promise<void>           => this.#do(rw, store => store.clear())
+
+  keys        = async (): Promise<string[]>       => this.#do(r, store => store.getAllKeys())
+  length      = async (): Promise<number>         => this.#do(r, store => store.count())
 
   #init = async (): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -51,5 +64,3 @@ const proxyHandler = {
   set(target: any, key: string, value: any) { return target.setItem(key, value) },
   deleteProperty(target: any, key: string)  { return target.removeItem(key) }
 };
-
-export default Vault;
