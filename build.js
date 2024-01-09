@@ -1,69 +1,75 @@
-const { clear } = require('console');
 const esbuild = require('esbuild');
+const fs = require('fs');
+const path = require('path');
+const { exec } = require('child_process');
 
 const isWatch = process.argv.includes("--watch");
 
-// Clear dist and typings folders
-const fs = require('fs');
-const path = require('path');
+function runTSC() {
+  exec('yarn tsc', (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error: ${error.message}`);
+      return;
+    }
+    if (stderr) {
+      console.error(`Stderr: ${stderr}`);
+      return;
+    }
+    console.log(`TypeScript compilation:\n${stdout}`);
+  });
+}
 
 function cleanDir(dir) {
   const dirPath = path.join(__dirname, dir);
   if (fs.existsSync(dirPath)) {
-    fs.rmdirSync(dirPath, { recursive: true });
+    fs.rmSync(dirPath, { recursive: true, force: true });
   }
   ensureDir(dirPath);
 }
 
 function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)){
+  if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
 }
 
-// Function to get all entry points (TypeScript files in this case) in a directory
 function getEntryPoints(dir) {
   return fs.readdirSync(dir)
-    .filter(file => file.endsWith('.ts'))  // Adjust this if you have .tsx or .jsx files
+    .filter(file => file.endsWith('.ts'))
     .map(file => path.join(dir, file));
 }
 
-const entryPoints = getEntryPoints('src');  // Replace 'src' with your source directory
+const entryPoints = getEntryPoints('src');
 
 cleanDir('./dist');
 cleanDir('./typings');
 
-// Build each entry point separately
-entryPoints.forEach(async (entryPoint) => {
+const buildOptions = entryPoints.map(entryPoint => {
   const fileName = path.basename(entryPoint, path.extname(entryPoint));
-   const buildOptions = {
+  return {
     entryPoints: [entryPoint],
     bundle: true,
     minify: true,
     format: 'esm',
     sourcemap: true,
-    outfile: `dist/${fileName}.js`,  // Output each file separately
+    outfile: `dist/${fileName}.js`,
   };
-
-  if (isWatch) {
-    buildOptions.watch = {
-      onRebuild(error, result) {
-        if (error) console.error('Watch build failed:', error);
-        else console.log('Watch build succeeded:', result);
-      },
-    };
-  }
-
-  esbuild.build(buildOptions).catch(() => process.exit(1));
 });
 
-// if (isWatch) {
-//   buildOptions.watch = {
-//     onRebuild(error, result) {
-//       if (error) console.error('Watch build failed:', error);
-//       else console.log('Watch build succeeded:', result);
-//     },
-//   };
-// }
+Promise.all(buildOptions.map(options => esbuild.build(options)))
+  .then(() => {
+    runTSC();
+    if (isWatch) {
+      console.log('Watching for changes...');
+    }
+  })
+  .catch(() => process.exit(1));
 
-// esbuild.build(buildOptions).catch(() => process.exit(1));
+if (isWatch) {
+  fs.watch('src', { recursive: true }, (eventType, filename) => {
+    console.log(`File ${filename} was changed, rebuilding...`);
+    Promise.all(buildOptions.map(options => esbuild.build(options)))
+      .then(runTSC)
+      .catch(() => process.exit(1));
+  });
+}
