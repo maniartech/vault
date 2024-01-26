@@ -1,7 +1,7 @@
 {
   "name": "vault-storage",
   "description": "Vault, a micro yet robust browser storage library",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "author": "ManiarTech®️ - Mohamed Aamir Maniar",
   "license": "MIT",
   "repository": {

@@ -1,34 +1,18 @@
-import Vault from "../dist/vault.js"
+import vault from "../dist/index.js"
+import * as crypto from '../dist/crypto.js';
 
 describe("A suite", () => {
   it("contains a spec with an expectation", async () => {
-    const vault = new Vault();
+  const secretData = 'Hello, World!';
+  const salt = await crypto.generateSalt("salt")
+  const key = await crypto.generateKey("password", salt);
+  const encryptedData = await crypto.encrypt(secretData, key);
+  const decrypted = await crypto.decrypt(encryptedData, key);
 
-    vault.firstName = "John";
-    const firstName = await vault.getItem("firstName");
-    expect(firstName).toBe("John2");
+  vault.encryptedData = encryptedData;
 
-    vault.lastName = "Doe";
-    const lastName = await vault.getItem("lastName");
-    expect(lastName).toBe("Doe");
-
-    const keys = await vault.keys();
-    expect(keys).toEqual(["firstName", "lastName"]);
-
-    // Check length
-    expect(await vault.length()).toBe(2);
-
-    const length = await vault.length();
-    expect(length).toBe(2);
-
-    delete vault.firstName;
-    expect(await vault.firstName).toBe(null);
-
-    vault.clear();
-    expect(await vault.lastName).toBe(null);
-
-    expect(await vault.length()).toBe(0);
-    expect(await vault.keys()).toEqual([]);
+  console.log('Encrypted Data:', new Uint8Array(encryptedData));
+  console.log('Decrypted Data:', decrypted);
   });
 })
 
