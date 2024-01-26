@@ -2,7 +2,7 @@ import Vault from "../dist/vault.js"
 
 describe("A suite", () => {
   it("contains a spec with an expectation", async () => {
-    const vault = new Vault("test");
+    const vault = new Vault("test", "db");
 
     vault.firstName = "John";
     const firstName = await vault.getItem("firstName");
