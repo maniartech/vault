@@ -26,8 +26,12 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://www.npmjs.com/search?q=keywords:karma-preprocessor
     preprocessors: {
-      '**/*.ts': 'karma-typescript' // Preprocess all TypeScript files with karma-typescript
+      '**/*.js': ['sourcemap']
     },
+
+    // plugins: [
+    //   'karma-sourcemap-loader'
+    // ],
 
     karmaTypescriptConfig: {
       tsconfig: './tsconfig.json'
