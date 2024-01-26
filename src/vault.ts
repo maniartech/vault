@@ -1,6 +1,7 @@
 import Middleware from "./middleware";
 
 const r = 'readonly', rw = 'readwrite';
+const s = 'store';
 
 /**
  * Vault is an asynchronous key/value store similar to localStorage, but
@@ -13,17 +14,16 @@ const r = 'readonly', rw = 'readwrite';
  * - You can store large amounts of data, not just 5MB.
  */
 export default class Vault {
-  #n = location.host; #s = 'vault';
-  #d: IDBDatabase | null = null; #m: Middleware[] = [];
+  #dbName = 'vault';
+  #db: IDBDatabase | null = null; #m: Middleware[] = [];
 
   // Fake custom properties support. Custom properties are stored in the
   // indexdb as key/value pairs. This is a workaround to allow custom
   // properties to be set and retrieved as if they were native properties.
   [key: string]: any;
 
-  constructor(s?: string, dn?: string) {
-    this.#n = dn || this.#n;
-    this.#s = s  || this.#s;
+  constructor(dbName?: string) {
+    this.#dbName = dbName || this.#dbName;
     return new Proxy(this, proxyHandler);
   }
 
@@ -39,18 +39,19 @@ export default class Vault {
 
   #init = async (): Promise<void> => {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.#n, 1);
-      request.onupgradeneeded = (event) => request.result.createObjectStore(this.#s, { keyPath: 'key' })
-      request.onsuccess = () => {this.#d = request.result;resolve()}
-      request.onerror = (event) => reject(event)
+      const request = indexedDB.open(this.#dbName, 1)
+      request.onupgradeneeded = (e:any) => {
+        e.target.result.createObjectStore(s, { keyPath: 'key' })
+      }
+      request.onsuccess = () => {this.#db = request.result;resolve()}
+      request.onerror = (e) => reject(e)
     })
   }
 
   #do = async (operationType: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest): Promise<any> => {
-    if (!this.#d) await this.#init();
-
-    const transaction = this.#d!.transaction(this.#s, operationType);
-    const request     = operation(transaction.objectStore(this.#s));
+    if (!this.#db) await this.#init()
+    const transaction = this.#db!.transaction(s, operationType);
+    const request     = operation(transaction.objectStore(s));
 
     return new Promise((resolve, reject) => {
       request.onsuccess = () => resolve(operationType === r ? request.result : undefined);
