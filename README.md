@@ -192,6 +192,34 @@ console.log(count);
 | **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
 | **Transaction Support**  | Complete transaction support for reliable data operations | None                  |
 
+## Vault Roadmap
+
+Since the vault is baesd on IndexDB database as storage provider, it is possible
+to make it more powerful and useful. Here are some planned features and their
+implementation status.
+
+### Core Features
+
+- [x] Extensible Vault class that has following qualities
+  - Provides a simple interface similar to local and session storages
+  - Supports indexers and dot notation for intuitive and ergonomic access
+  - Store large amount of data
+  - Perorm transactional in non-blocking asynchronous manner
+- [x] Global default vault instance for ease of use
+- [x] Support custom databases
+
+### Advanced Features - Middleware and Encryption
+
+- [x] Middleware support
+- [x] Support encrypted values to safeguard sensitive data in the vault
+
+### Other Advanced Features
+
+- [ ] Support multiple update in a single transaction
+- [ ] Automatic expiration of values based on TTL, Session Timeout and other
+      expiration policies
+- [ ] Support for vault data backup and restore
+
 ## Contributing
 
 Contributions to `vault-storage` are welcome. Please ensure that your code adheres to the existing style and includes tests covering new features or bug fixes.
