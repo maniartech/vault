@@ -1,5 +1,3 @@
-import Middleware from "./middleware";
-
 const r = 'readonly', rw = 'readwrite';
 const s = 'store';
 
@@ -7,7 +5,6 @@ const s = 'store';
  * Vault is an asynchronous key/value store similar to localStorage, but
  * with the following differences:
  * - It is asynchronous.
- * - It provides a middleware mechanism to intercept and modify data.
  * - It is an extensible class that can be extended to provide additional
  *   functionality.
  * - It let to store any type of data, not just strings.
@@ -15,7 +12,7 @@ const s = 'store';
  */
 export default class Vault {
   #dbName = 'vault';
-  #db: IDBDatabase | null = null; #m: Middleware[] = [];
+  #db: IDBDatabase | null = null;
 
   // Fake custom properties support. Custom properties are stored in the
   // indexdb as key/value pairs. This is a workaround to allow custom
@@ -27,15 +24,12 @@ export default class Vault {
     return new Proxy(this, proxyHandler);
   }
 
-  setItem     = async (key: string, value: any): Promise<void>  => this.#do(rw, store => store.put({ key, value }))
-  getItem     = async (key: string): Promise<any>               => this.#do(r, store => store.get(key)).then(result => result?.value ?? null)
-
-
-  removeItem  = async (key: string):Promise<void> => this.#do(rw, store => store.delete(key))
-  clear       = async (): Promise<void>           => this.#do(rw, store => store.clear())
-
-  keys        = async (): Promise<string[]>       => this.#do(r, store => store.getAllKeys())
-  length      = async (): Promise<number>         => this.#do(r, store => store.count())
+  async setItem(key: string, value: any): Promise<void>   { this.do(rw, (s:any) => s.put({ key, value })) }
+  async getItem(key: string): Promise<any>                { this.do(r, (s: any) => s.get(key)).then((r:any) => r?.value ?? null) }
+  async removeItem(key: string):Promise<void>             { this.do(rw, (s:any) => s.delete(key)) }
+  async clear(): Promise<void>                            { this.do(rw, (s:any) => s.clear()) }
+  async keys(): Promise<string[]>                         { return this.do(r, (s:any) => s.getAllKeys()) }
+  async length(): Promise<number>                         { return this.do(r, (s:any) => s.count()) }
 
   #init = async (): Promise<void> => {
     return new Promise((resolve, reject) => {
