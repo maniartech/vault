@@ -106,8 +106,9 @@ const securedStorage3 = new SecuredVault("secured-storage", async (key) => {
 // Just start using it!
 
 // Set the values. It stores the encrypted Uint8Array in the database
-// against the key.
-securedStorage1.key1 = "value1";
+// against the key. If you want to immediately use the value, then
+// you must use await while setting the value.
+await securedStorage1.setItem("key1", "value1");
 
 // Get the values. Remember to use await! As it's asynchronous.
 const value1 = await securedStorage1.key1; // "value1"
