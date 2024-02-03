@@ -78,7 +78,7 @@ similar API to the `vault` but it encrypts the data before storing it in the
 database. It uses browser's native crypto API to encrypt the data.
 
 ```javascript
-import SecuredVault from 'vault-storage/secured';
+import SecuredVault from 'vault-storage/secured-vault';
 
 // Secured storage using fixed password and salt.
 const securedStorage1 = new SecuredVault("secured-storage", {
