@@ -106,8 +106,9 @@ const securedStorage3 = new SecuredVault("secured-storage", async (key) => {
 // Just start using it!
 
 // Set the values. It stores the encrypted Uint8Array in the database
-// against the key.
-securedStorage1.key1 = "value1";
+// against the key. If you want to immediately use the value, then
+// you must use await while setting the value.
+await securedStorage1.setItem("key1", "value1");
 
 // Get the values. Remember to use await! As it's asynchronous.
 const value1 = await securedStorage1.key1; // "value1"
@@ -186,15 +187,16 @@ console.log(count);
 - `clear()`: Clear all data from the database.
 - `length()`: Get the count of entries in the database.
 
-## Comparing `vault` with LocalStorage
+## Comparing Vault with LocalStorage
 
-| Feature                  | `vault` (IndexedDB)      | LocalStorage           |
+| Feature                  | Vault      | LocalStorage           |
 |--------------------------|--------------------------|------------------------|
 | **API Complexity**       | Simple, intuitive API    | Simple, intuitive API  |
 | **Capacity**             | Large (up to browser limit, often no less than 250MB) | Limited (5MB typical)  |
+| **Multiple Stores**      | Supports multiple stores | Single store           |
+| **Encrypted Storage**    | Supports built-in secured storage | No built-in encryption support  |
 | **Data Types**           | Supports structured data, including objects and arrays | Only stores strings    |
 | **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
-| **Transaction Support**  | Complete transaction support for reliable data operations | None                  |
 
 ## Vault Roadmap
 
