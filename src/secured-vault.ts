@@ -1,42 +1,47 @@
-import { get } from "http"
+import proxyHandler from "./proxy-handler"
 import Vault from "./vault"
 
-type EncKeySalt = { key: string, salt: string }
+type EncKeySalt = { password: string, salt: string }
 type FuncEncKeySalt = (key: string) => Promise<EncKeySalt>
 type EncConfig = EncKeySalt | FuncEncKeySalt | null
 
 class SecuredVault extends Vault {
-  #encConfig:EncConfig
-  #keyCache:Map<string, CryptoKey> = new Map()
+  encConfig:EncConfig
+  keyCache:Map<string, CryptoKey> = new Map()
 
   constructor(dbName:string, encConfig:EncConfig) {
-    super(dbName)
-    this.#encConfig = encConfig
+    super(dbName, true)
+    this.encConfig = encConfig
+
+    return new Proxy(this, proxyHandler)
   }
 
   async setItem(key: string, value: any): Promise<void> {
-    if (this.#encConfig === null) return super.setItem(key, value)
+    if (this.encConfig === null || value === null || value === undefined) {
+      return super.setItem(key, value)
+    }
 
-    const encKey = await this.#getKey(key)
+    const encKey = await this.getKey(key)
     const encValue = await encrypt(encKey, typeof value === 'string' ? value : JSON.stringify(value))
     return super.setItem(key, encValue)
   }
 
   async getItem(key: string): Promise<any> {
     const encValue = await super.getItem(key)
-    if (this.#encConfig === null) return encValue
-    return decrypt(await this.#getKey(key), encValue)
+    if (encValue === null) return null
+    if (this.encConfig === null) return encValue
+    return decrypt(await this.getKey(key), encValue)
   }
 
-  #getKey = async (key: string): Promise<CryptoKey> => {
-    if (this.#keyCache.has(key)) return this.#keyCache.get(key)!
-    if (typeof this.#encConfig === 'function') {
-      const encKeySalt = await this.#encConfig(key)
-      return await generateKey(encKeySalt.key, await generateSalt(encKeySalt.salt))
+  getKey = async (key: string): Promise<CryptoKey> => {
+    if (this.keyCache.has(key)) return this.keyCache.get(key)!
+    if (typeof this.encConfig === 'function') {
+      const encKeySalt = await this.encConfig(key)
+      return await generateKey(encKeySalt.password, await generateSalt(encKeySalt.salt))
     }
 
-    const encKey = await generateKey( this.#encConfig!.key, await generateSalt(this.#encConfig!.salt))
-    this.#keyCache.set(key, encKey)
+    const encKey = await generateKey( this.encConfig!.password, await generateSalt(this.encConfig!.salt))
+    this.keyCache.set(key, encKey)
 
     return encKey
   }
