@@ -1,9 +1,7 @@
-import Vault from "../dist/vault.js"
+import vault from "../dist/index.js"
 
-describe("A suite", () => {
-  it("contains a spec with an expectation", async () => {
-    const vault = new Vault("test", "db");
-
+describe("Vault", () => {
+  it("contains a Vault spec for testing built-in defafult vault store", async () => {
     vault.firstName = "John";
     const firstName = await vault.getItem("firstName");
     expect(firstName).toBe("John");
