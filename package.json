@@ -38,7 +38,7 @@
     "test": "karma start karma.conf.js",
     "build:types": "tsc",
     "build": "node ./build.js && npm run build:types",
-    "watch": "node ./build.js --watch"
+    "watch": "node ./build.js --watch --debug"
   },
   "devDependencies": {
     "@types/jasmine": "^5.1.4",
