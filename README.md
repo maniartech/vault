@@ -11,7 +11,7 @@ client-side data storage efficient and scalable.
 - **Similar API**: Easy to use, similar to LocalStorage.
 - **Lightweight**: No dependencies, micro footprint
   - Less than a KB (minified and gzipped), unsecured vault
-  - Aroound 1.5 KB (minified and gzipped), secured vault
+  - Around 1.5 KB (minified and gzipped), secured vault
 - **Multiple Stores Support**: Supports multiple stores with single api.
 - **Encrypted Vault**: Provides a secure storage for sensitive data.
 - **Asynchronous**: Non-blocking, asynchronous API.
