@@ -9,7 +9,11 @@ client-side data storage efficient and scalable.
 ## Features
 
 - **Similar API**: Easy to use, similar to LocalStorage.
-- **Lightweight**: No dependencies, micro footprint (Less than a KB minified and gzipped).
+- **Lightweight**: No dependencies, micro footprint
+  - Less than a KB (minified and gzipped), unsecured vault
+  - Aroound 1.5 KB (minified and gzipped), secured vault
+- **Multiple Stores Support**: Supports multiple stores with single api.
+- **Encrypted Vault**: Provides a secure storage for sensitive data.
 - **Asynchronous**: Non-blocking, asynchronous API.
 - **Structured Data**: Supports structured data, including objects and arrays.
 
@@ -198,7 +202,7 @@ Since the vault is baesd on IndexDB database as storage provider, it is possible
 to make it more powerful and useful. Here are some planned features and their
 implementation status.
 
-### Core Features
+### Core Features (v1.0.*)
 
 - [x] Extensible Vault class that has following qualities
   - Provides a simple interface similar to local and session storages
@@ -208,12 +212,12 @@ implementation status.
 - [x] Global default vault instance for ease of use
 - [x] Support custom databases
 
-### Advanced Features - Middleware and Encryption
+### Advanced Features - Encryption (v1.1.*)
 
-- [x] Middleware support
-- [x] Support encrypted values to safeguard sensitive data in the vault
+- [x] Support for secured vault storage
+- [x] Support for dynamic password and salt for secured vault storage
 
-### Other Advanced Features
+### Other Advanced Features (Future)
 
 - [ ] Support multiple update in a single transaction
 - [ ] Automatic expiration of values based on TTL, Session Timeout and other
