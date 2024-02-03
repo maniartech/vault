@@ -4,6 +4,8 @@ const fs        = require('fs'); // For file system operations
 const path      = require('path'); // For handling and transforming file paths
 const { exec }  = require('child_process'); // For running shell commands
 
+const debug = process.argv.includes("--debug") || false;
+
 // Check if the "--watch" argument is passed in the command line
 const isWatch = process.argv.includes("--watch");
 
@@ -69,7 +71,7 @@ const buildOptions = entryPoints.map(entryPoint => {
   return {
     entryPoints: [entryPoint],
     bundle: true,
-    minify: true,
+    minify: !debug,
     format: 'esm',
     sourcemap: true,
     outfile: `dist/${fileName}.js`,
