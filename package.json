@@ -42,13 +42,18 @@
     "./types/vault": "./types/vault.d.ts",
     "./types/secured-vault": "./types/secured-vault.d.ts"
   },
+  "files": [
+    "dist",
+    "types"
+  ],
   "scripts": {
     "test": "karma start karma.conf.js",
-    "clean": "rimraf dist types",
+    "clean": "node clean.js",
     "build:types": "tsc",
     "build:vault": "node ./build.js && npm run build:types",
     "build": "npm run clean && npm run build:vault && npm run build:types",
-    "watch": "node ./build.js --watch --debug"
+    "watch": "node ./build.js --watch --debug",
+    "prepack": "npm run build"
   },
   "devDependencies": {
     "@types/jasmine": "^5.1.4",
@@ -62,7 +67,6 @@
     "karma-sourcemap-loader": "^0.4.0",
     "karma-spec-reporter": "^0.0.36",
     "karma-typescript": "^5.5.4",
-    "rimraf": "^5.0.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }
