@@ -1,10 +1,8 @@
 {
   "compilerOptions": {
-    /* Projects */
-    "incremental": true,
-    /* Language and Environment */
     "target": "ESNext",
     "lib": ["ESNext", "DOM"],
+
     /* Modules */
     "module": "ESNext",
     "rootDir": "./src",
@@ -13,7 +11,7 @@
     /* Emit */
     "declaration": true,
     "emitDeclarationOnly": true,
-    "outDir": "./dist",
+    "outDir": "./types",
     "removeComments": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -21,9 +19,11 @@
     /* Type Checking */
     "strict": true,
   },
+
   "include": [
     "src/**/*.ts"
   ],
+
   "exclude": [
     "node_modules", // Exclude the node_modules directory
     "dist"

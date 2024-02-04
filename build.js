@@ -28,18 +28,6 @@ function runTSC() {
   });
 }
 
-// Function to clean a directory
-function cleanDir(dir) {
-  // Get the absolute path of the directory
-  const dirPath = path.join(__dirname, dir);
-  // If the directory exists, remove it
-  if (fs.existsSync(dirPath)) {
-    fs.rmSync(dirPath, { recursive: true, force: true });
-  }
-  // Ensure the directory exists
-  ensureDir(dirPath);
-}
-
 // Function to ensure a directory exists
 function ensureDir(dirPath) {
   // If the directory doesn't exist, create it
@@ -59,10 +47,6 @@ function getEntryPoints(dir) {
 // Get all TypeScript files in the 'src' directory
 const entryPoints = getEntryPoints('src');
 
-// Clean the 'dist' and 'typings' directories
-cleanDir('./dist');
-cleanDir('./typings');
-
 // Prepare build options for each TypeScript file
 const buildOptions = entryPoints.map(entryPoint => {
   // Get the file name without extension
@@ -73,7 +57,7 @@ const buildOptions = entryPoints.map(entryPoint => {
     bundle: true,
     minify: !debug,
     format: 'esm',
-    sourcemap: true,
+    sourcemap: debug,
     outfile: `dist/${fileName}.js`,
   };
 });
