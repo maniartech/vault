@@ -11,29 +11,20 @@ const s = 'store';
  *   functionality.
  * - It let to store any type of data, not just strings.
  * - You can store large amounts of data, not just 5MB.
- * @property {string} dbName - The name of the database.
+ * @property {string} storageName - The name of the database.
  * @property {IDBDatabase|null} db - The database instance.
  */
 export default class Vault {
-  protected dbName = 'vault';
+  protected storageName = 'vault';
   protected db: IDBDatabase | null = null;
 
   /**
-   * Fake custom properties support. Custom properties are stored in the
-   * indexdb as key/value pairs. This is a workaround to allow custom
-   * properties to be set and retrieved as if they were native properties.
-   * @property {any} key - The key of the custom property.
-   */
-
-  [key: string]: any;
-
-  /**
-   * The constructor for the Vault class.
-   * @param {string} [dbName] - The name of the database.
+   * Creates new custom instance of custom Vault Storage.
+   * @param {string} [storageName] - The name of the storage.
    * @param {boolean} [isParent=false] - A flag to indicate if this instance is a parent.
    */
-  constructor(dbName?: string, isParent: boolean = false) {
-    this.dbName = dbName || this.dbName;
+  constructor(storageName?: string, isParent: boolean = false) {
+    this.storageName = storageName || this.storageName;
     // Use instanceToProxy if provided, otherwise default to this
     if (!isParent) return new Proxy(this, proxyHandler)
   }
@@ -44,14 +35,18 @@ export default class Vault {
    * @param {any} value - The value of the item.
    * @returns {Promise<void>}
    */
-  async setItem(key: string, value: any): Promise<void>   { return this.do(rw, (s:any) => s.put({ key, value })) }
+  async setItem(key: string, value: any): Promise<void> {
+    return this.do(rw, (s:any) => s.put({ key, value }))
+  }
 
   /**
    * Get an item from the database.
    * @param {string} key - The key of the item.
    * @returns {Promise<any>} - The value of the item.
    */
-  async getItem(key: string): Promise<any>                { return this.do(r, (s: any) => s.get(key)).then((r:any) => r?.value ?? null) }
+  async getItem(key: string): Promise<any>  {
+    return this.do(r, (s: any) => s.get(key)).then((r:any) => r?.value ?? null)
+  }
 
   /**
    * Remove an item from the database.
@@ -81,7 +76,7 @@ export default class Vault {
   // Initialize the database and return a promise.
   protected async init(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, 1)
+      const request = indexedDB.open(this.storageName, 1)
       request.onupgradeneeded = (e:any) => {
         e.target.result.createObjectStore(s, { keyPath: 'key' })
       }
