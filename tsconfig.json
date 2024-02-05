@@ -1,17 +1,17 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
     "lib": ["ESNext", "DOM"],
 
     /* Modules */
     "module": "ESNext",
+    "target": "ESNext",
     "rootDir": "./src",
     "moduleResolution": "node",
 
     /* Emit */
     "declaration": true,
     "emitDeclarationOnly": true,
-    "outDir": "./types",
+    "outDir": "./dist",
     "removeComments": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
