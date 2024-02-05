@@ -34,6 +34,11 @@ type FuncEncCredential = (key: string) => Promise<EncCredential>
  */
 type EncConfig = EncCredential | FuncEncCredential | null
 
+/**
+ * The SecureVault class provides a secure way to store and retrieve data from
+ * the Vault. The SecureVault class extends the Vault class and provides
+ * encryption and decryption of data using the Web Cryptography API.
+ */
 class SecuredVault extends Vault {
   private encConfig:EncConfig
   private keyCache:Map<string, CryptoKey> = new Map()
