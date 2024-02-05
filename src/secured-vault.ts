@@ -1,22 +1,67 @@
 import proxyHandler from "./proxy-handler"
-import Vault from "./vault"
+import Vault        from "./vault"
 
-type EncKeySalt = { password: string, salt: string }
-type FuncEncKeySalt = (key: string) => Promise<EncKeySalt>
-type EncConfig = EncKeySalt | FuncEncKeySalt | null
+/**
+ * Credential object that aims to provide the password and salt used for
+ * encryption and decryption of SecureVault data.
+ *
+ * @typedef {Object} EncCredential
+ * @property {string} password - The encrypted password
+ * @property {string} salt - The salt used for encryption
+ */
+type EncCredential = { password: string, salt: string }
+
+/**
+ * Function that returns a Promise which resolves to `EncCredential` object.
+ *
+ * @typedef {function} FuncEncCredential
+ * @param {string} key - The key used for encryption
+ * @returns {Promise<EncCredential>} A Promise that resolves to an Encrypted Credential
+ */
+type FuncEncCredential = (key: string) => Promise<EncCredential>
+
+/**
+ * Configuration used for encryption and decryption of SecureVault data. If may
+ * be an `EncCredential` object or a function that
+ * returns a Promise which resolves to an `EncCredential` object.
+ *
+ * @typedef {Object} EncConfig
+ * @property {EncCredential | FuncEncCredential | null} - The encrypted
+ * configuration can be an Encrypted Credential, a function that returns a
+ * Promise which resolves to an Encrypted Credential, or null. When the value
+ * is null, the SecureVault will not encrypt or decrypt the data for the
+ * specified key.
+ */
+type EncConfig = EncCredential | FuncEncCredential | null
 
 class SecuredVault extends Vault {
-  encConfig:EncConfig
-  keyCache:Map<string, CryptoKey> = new Map()
+  private encConfig:EncConfig
+  private keyCache:Map<string, CryptoKey> = new Map()
 
-  constructor(dbName:string, encConfig:EncConfig) {
+/**
+ * Constructs a new instance of the SecuredVault class.
+ * @constructor
+ * @param {string} dbName - The name of the database.
+ * @param {EncConfig} encConfig - The encrypted configuration.
+ */
+constructor(dbName:string, encConfig:EncConfig) {
     super(dbName, true)
     this.encConfig = encConfig
 
     return new Proxy(this, proxyHandler)
   }
 
-  async setItem(key: string, value: any): Promise<void> {
+/**
+ * Asynchronously sets the value of the specified key in the vault.
+ * If the encryption configuration is not null and the value is not null or
+ * undefined, the value is encrypted before being stored.
+ *
+ * @async
+ * @param {string} key - The key of the item to set.
+ * @param {any} value - The value of the item to set.
+ * @returns {Promise<void>} A Promise that resolves when the value has been set.
+ */
+async setItem(key: string, value: any): Promise<void> {
     if (this.encConfig === null || value === null || value === undefined) {
       return super.setItem(key, value)
     }
@@ -26,20 +71,31 @@ class SecuredVault extends Vault {
     return super.setItem(key, encValue)
   }
 
+ /**
+  * Asynchronously gets the value of the specified key from the vault.
+  * If the encryption configuration is not null and the retrieved value is not
+  * null, the value is decrypted before being returned.
+  *
+  * @async
+  * @param {string} key - The key of the item to get.
+  * @returns {Promise<any>} A Promise that resolves to the value of the specified key. If the key does not exist, the Promise resolves to null.
+  */
   async getItem(key: string): Promise<any> {
-    const encValue = await super.getItem(key)
-    if (encValue === null) return null
-    if (this.encConfig === null) return encValue
-    return decrypt(await this.getKey(key), encValue)
+      const encValue = await super.getItem(key)
+      if (encValue === null) return null
+      if (this.encConfig === null) return encValue
+      return decrypt(await this.getKey(key), encValue)
   }
 
-  getKey = async (key: string): Promise<CryptoKey> => {
+  // Asynchronously gets or generates the encryption key for the specified key.
+  private getKey = async (key: string): Promise<CryptoKey> => {
     if (this.keyCache.has(key)) return this.keyCache.get(key)!
     if (typeof this.encConfig === 'function') {
       const encKeySalt = await this.encConfig(key)
       return await generateKey(encKeySalt.password, await generateSalt(encKeySalt.salt))
     }
 
+    // Cache all keys from non-function encConfig
     const encKey = await generateKey( this.encConfig!.password, await generateSalt(this.encConfig!.salt))
     this.keyCache.set(key, encKey)
 
