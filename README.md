@@ -11,7 +11,7 @@ client-side data storage efficient and scalable.
 - **Similar API**: Easy to use, similar to LocalStorage.
 - **Lightweight**: No dependencies, micro footprint
   - Less than a KB (minified and gzipped), unsecured vault
-  - Around 1.5 KB (minified and gzipped), secured vault
+  - Around a KB (minified and gzipped), secured vault
 - **Multiple Stores Support**: Supports multiple stores with single api.
 - **Encrypted Vault**: Provides a secure storage for sensitive data.
 - **Asynchronous**: Non-blocking, asynchronous API.
@@ -33,7 +33,10 @@ yarn add vault-storage
 
 ## Usage
 
-First, import `vault-storage` in your project:
+First, import the `vault` from `vault-storage`. The `vault` is a default instance
+of the `Vault` storage class and hence does not need any special initialization
+or setup!!! The `vault` provides a ready to use instance similar to localStorage
+and sessionStorage. You can start using it right away without any setup.
 
 ```javascript
 import vault from 'vault-storage';
@@ -41,9 +44,7 @@ import vault from 'vault-storage';
 
 ### Initializing and Setup
 
-By default, the `vault` does not need any special initialization or setup!!!
-In this way, it behaves similar to the local and session storages, It uses
-default database and store names.
+
 
 > **Just start using it!**
 
@@ -59,59 +60,70 @@ const value2 = await vault.key2; // "value2"
 
 ### Custom Storage
 
-You can also use a custom database name and store name. This is useful when you
-want to use multiple databases or stores.
+You can also create a custom storage. This is useful when you want to use
+multiple storages for different purposes. All the custom storage also share the
+same API as the default vault storage and other built-in storages like
+localStorage and sessionStorage.
 
 ```javascript
 import Vault from 'vault-storage/vault';
 
 
-const myStorage = new Vault("my-storage")
-myStorage.setItem("key", "value")
-console.log("key", await myStorage.getItem("key"))
+const appStorage = new Vault("app-storage")
+appStorage.setItem("key", "value")
+console.log("key", await appStorage.getItem("key"))
+
+const userStorage = new Vault("user-storage")
+userStorage.setItem("key", "value")
 ```
 
-### Custom Secure Database
+### Secure Storage
 
-Secured databases are useful when you want to store sensitive data. It provides
-similar API to the `vault` but it encrypts the data before storing it in the
-database. It uses browser's native crypto API to encrypt the data.
+Secured storages are useful when you want to store sensitive data. It shares
+the same API but it encrypts the data before storing it in the
+storage. It uses browser's native crypto API to encrypt the data. The secured
+storage can be created using a fixed credentials or dynamic credentials (credentials
+that are generated based on the key).
 
 ```javascript
 import SecuredVault from 'vault-storage/secured-vault';
 
-// Secured storage using fixed password and salt.
-const securedStorage1 = new SecuredVault("secured-storage", {
-  password: "my-password",
-  salt: "my-salt",
+// Secured storage using fixed credentials (password and salt).
+const authStorage = new SecuredVault("secured-storage", {
+  password: "SADF@#$W$ERWESD",
+  salt: "SDF@#$%SERWESD",
 });
 
-// Secured storage using dynamic password and salt.
-const securedStorage2 = new SecuredVault("secured-storage", (key) => {
-  const password = key.startsWith("key1") ? "my-password1" : "my-password2";
-  const salt = key.startsWith("key1") ? "my-salt1" : "my-salt2";
+authStorage.token = "my-token"
+console.log("token", await authStorage.token)
+
+// Secured storage using dynamic credentials.
+const securedStorage = new SecuredVault("secured-storage", (key) => {
+  const password = key === "token" ? "ASF@#$%QER()SDF" : "SXDFW#$%@#SDF";
+  const salt = key.startsWith("key1") ? "xxx@xxxxxxxxxx" : "yyy@yyyyyyyyyy";
   return { password, salt };
 });
 
-// Secured storage using promise based password and salt.
-const securedStorage3 = new SecuredVault("secured-storage", async (key) => {
+// Secured storage using promise based dynamic credentials.
+const sensitiveStorage = new SecuredVault("secured-storage", async (key) => {
   return new Promise(async (resolve) => {
-    const res = await fetch("/get-key")
-    const { password, salt } = generatePasswordFromKey(res.key)
+    const { password, salt } = await fetchOrGenerateCredentialsFor(key)
     resolve({ password, salt })
   });
 });
 
+
 // Once the secured valued is setup, usage is similar to the regular vault storage.
 // Just start using it!
 
-// Set the values. It stores the encrypted Uint8Array in the database
+// Set the values. It stores the encrypted Uint8Array in the storage
 // against the key. If you want to immediately use the value, then
 // you must use await while setting the value.
-await securedStorage1.setItem("key1", "value1");
+await authStorage.setItem("token", "eyJhbGciOiJIUzI1NiJ9.eyJSb2xlIjoiQWRtaW4iLCJJc3N1ZXIiOiJJc3N1ZXIiLCJVc2VybmFtZSI6IkphdmFJblVzZSIsImV4cCI6MTcwNzA2NzgwMywiaWF0IjoxNzA3MDY3ODAzfQ.XmPqTUN3KJeEArX58xVfHIQGGtm291p9ZamBvrflCMo")
 
 // Get the values. Remember to use await! As it's asynchronous.
-const value1 = await securedStorage1.key1; // "value1"
+const token = await authStorage.token; // Decrypted token from the authStorage
+                                       // and returns the original token.
 ```
 
 ### Setting Values
@@ -181,11 +193,11 @@ console.log(count);
 
 ## API Reference
 
-- `setItem(key: string, value: any)`: Store data in the database.
-- `getItem(key: string)`: Retrieve data from the database.
-- `removeItem(key: string)`: Remove data from the database.
-- `clear()`: Clear all data from the database.
-- `length()`: Get the count of entries in the database.
+- `setItem(key: string, value: any)`: Store data in the storage.
+- `getItem(key: string)`: Retrieve data from the storage.
+- `removeItem(key: string)`: Remove data from the storage.
+- `clear()`: Clear all data from the storage.
+- `length()`: Get the count of entries in the storage.
 
 ## Comparing Vault with LocalStorage
 
