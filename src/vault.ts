@@ -5,23 +5,18 @@ const s = 'store';
 
 /**
  * Vault is an asynchronous key/value store similar to localStorage, but
- * with the following differences:
- * - It is asynchronous.
- * - It is an extensible class that can be extended to provide additional
- *   functionality.
- * - It let to store any type of data, not just strings.
- * - You can store large amounts of data, not just 5MB.
- * @property {string} storageName - The name of the database.
- * @property {IDBDatabase|null} db - The database instance.
+ * provides a more flexible and powerful storage mechanism.
  */
 export default class Vault {
-  protected storageName = 'vault';
+  protected storageName = 'vault-storage';
   protected db: IDBDatabase | null = null;
 
   /**
    * Creates new custom instance of custom Vault Storage.
    * @param {string} [storageName] - The name of the storage.
-   * @param {boolean} [isParent=false] - A flag to indicate if this instance is a parent.
+   * @param {boolean} [isParent=false] - A flag to indicate if this instance
+   * is a parent. This property should be ignored by the user unless they are
+   * extending the Vault class.
    */
   constructor(storageName?: string, isParent: boolean = false) {
     this.storageName = storageName || this.storageName;
