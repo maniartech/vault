@@ -64,7 +64,7 @@ describe("SecuredVault", () => {
   });
 
   it("contains a SecuredVault specs using proxy based encConfig", async () => {
-    const vault = new SecuredVault("secured-store-proxy", () => {
+    const vault = new SecuredVault("secured-store-promise", () => {
       return new Promise((resolve) => {
         setTimeout(() => {
           resolve({
