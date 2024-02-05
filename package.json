@@ -37,10 +37,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./vault": "./dist/vault.js",
-    "./secured-vault": "./dist/secured-vault.js",
-    "./types": "./types/index.d.ts",
-    "./types/vault": "./types/vault.d.ts",
-    "./types/secured-vault": "./types/secured-vault.d.ts"
+    "./secured-vault": "./dist/secured-vault.js"
   },
   "files": [
     "dist",
