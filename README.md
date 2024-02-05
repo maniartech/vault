@@ -77,7 +77,7 @@ const userStorage = new Vault("user-storage")
 userStorage.setItem("key", "value")
 ```
 
-### Secure Storage
+### Secured Storage
 
 Secured storages are useful when you want to store sensitive data. It shares
 the same API but it encrypts the data before storing it in the
@@ -122,7 +122,7 @@ const sensitiveStorage = new SecuredVault("secured-storage", async (key) => {
 await authStorage.setItem("token", "eyJhbGciOiJIUzI1NiJ9.eyJSb2xlIjoiQWRtaW4iLCJJc3N1ZXIiOiJJc3N1ZXIiLCJVc2VybmFtZSI6IkphdmFJblVzZSIsImV4cCI6MTcwNzA2NzgwMywiaWF0IjoxNzA3MDY3ODAzfQ.XmPqTUN3KJeEArX58xVfHIQGGtm291p9ZamBvrflCMo")
 
 // Get the values. Remember to use await! As it's asynchronous.
-const token = await authStorage.token; // Decrypted token from the authStorage
+const token = await authStorage.token; // Decrypts the token from the authStorage
                                        // and returns the original token.
 ```
 
