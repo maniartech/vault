@@ -209,7 +209,7 @@ const meta = await vault.getItemMeta('yourKey');
 
 ## API Reference
 
-- `setItem(key: string, value: any)`: Store data in the storage.
+- `setItem(key: string, value: any, meta: any)`: Store data in the storage.
 - `getItem(key: string)`: Retrieve data from the storage.
 - `removeItem(key: string)`: Remove data from the storage.
 - `clear()`: Clear all data from the storage.
