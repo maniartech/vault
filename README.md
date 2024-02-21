@@ -205,6 +205,7 @@ vault.setItem('yourKey', { any: 'data' }, {
 
 // Get the meta data along with the item value.
 const meta = await vault.getItemMeta('yourKey');
+console.log("yourKey expires on ", meta.expires);
 ```
 
 ## API Reference
