@@ -264,14 +264,3 @@ Contributions to `vault-storage` are welcome. Please ensure that your code adher
 ## License
 
 `vault-storage` is [MIT licensed](./LICENSE).
-
-```javascript
- // 1 week
-vault.setItem('yourKey', true, { ttl: 60 * 24 * 7 });
-
-// 2024-01-01 00:00:00
-vault.setItem('yourKey', true, {
-  expires: new Date('2024-01-01'),
-});
-
-```
