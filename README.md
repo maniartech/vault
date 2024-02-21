@@ -3,8 +3,9 @@
 `vault` is a sophisticated browser-based storage library that leverages the power
 of IndexedDB, offering significant improvements over traditional LocalStorage.
 As a high-performance, asynchronous solution for client-side storage, `vault`
-provides an intuitive and easy-to-use API to interact with IndexedDB, making
-client-side data storage efficient and scalable.
+provides an intuitive and easy-to-use API similar to local and session storage, increasing the capacity of the storage, and adding support for structured data,
+and support for multiple stores. It also provides a secure storage for sensitive
+data.
 
 ## Features
 
@@ -13,6 +14,7 @@ client-side data storage efficient and scalable.
   - Less than a KB (minified and gzipped), unsecured vault
   - Around a KB (minified and gzipped), secured vault
 - **Multiple Stores Support**: Supports multiple stores with single api.
+- **Store Additional Meta Data**: Store additional meta data along with the item value.
 - **Encrypted Vault**: Provides a secure storage for sensitive data.
 - **Asynchronous**: Non-blocking, asynchronous API.
 - **Structured Data**: Supports structured data, including objects and arrays.
@@ -43,8 +45,6 @@ import vault from 'vault-storage';
 ```
 
 ### Initializing and Setup
-
-
 
 > **Just start using it!**
 
@@ -113,8 +113,8 @@ const sensitiveStorage = new SecuredVault("secured-storage", async (key) => {
 });
 
 
-// Once the secured valued is setup, usage is similar to the regular vault storage.
-// Just start using it!
+// Once the secured vault is setup, usage is similar to the regular vault
+// storage. Just start using it!
 
 // Set the values. It stores the encrypted Uint8Array in the storage
 // against the key. If you want to immediately use the value, then
@@ -191,6 +191,22 @@ const count = await vault.length();
 console.log(count);
 ```
 
+### Working with Item Meta Data
+
+You can also store meta data along with the item value. The meta data is useful
+when you want to store some additional information about the item. The meta data
+is stored along with the item value and can be retrieved using the `getItemMeta` method.
+
+```javascript
+// Set the additional meta data along with the item value.
+vault.setItem('yourKey', { any: 'data' }, {
+  expires: new Date('2024-12-31'),
+});
+
+// Get the meta data along with the item value.
+const meta = await vault.getItemMeta('yourKey');
+```
+
 ## API Reference
 
 - `setItem(key: string, value: any)`: Store data in the storage.
@@ -206,6 +222,7 @@ console.log(count);
 | **API Complexity**       | Simple, intuitive API    | Simple, intuitive API  |
 | **Capacity**             | Large (up to browser limit, often no less than 250MB) | Limited (5MB typical)  |
 | **Multiple Stores**      | Supports multiple stores | Single store           |
+| **Meta Data**            | Supports storing meta data along with the item value | No support for meta data |
 | **Encrypted Storage**    | Supports built-in secured storage | No built-in encryption support  |
 | **Data Types**           | Supports structured data, including objects and arrays | Only stores strings    |
 | **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
@@ -216,27 +233,28 @@ Since the vault is baesd on IndexDB database as storage provider, it is possible
 to make it more powerful and useful. Here are some planned features and their
 implementation status.
 
-### Core Features (v1.0.*)
+### Core Features
 
-- [x] Extensible Vault class that has following qualities
+- [x] Extensible Vault class that has following qualities `(v1.0.*)`
   - Provides a simple interface similar to local and session storages
   - Supports indexers and dot notation for intuitive and ergonomic access
   - Store large amount of data
   - Perorm transactional in non-blocking asynchronous manner
-- [x] Global default vault instance for ease of use
-- [x] Support custom databases
+- [x] Global default vault instance for ease of use `(v1.0.*)`
+- [x] Support custom databases `(v1.0.*)`
 
-### Advanced Features - Encryption (v1.1.*)
+### Advanced Features - Encryption
 
-- [x] Support for secured vault storage
-- [x] Support for dynamic password and salt for secured vault storage
+- [x] Support for secured vault storage `(v1.1.*)`
+- [x] Support for dynamic password and salt for secured vault storage `(v1.0.*)`
 
-### Other Advanced Features (Future)
+### Other Advanced Features
 
-- [ ] Support multiple update in a single transaction
+- [x] Support for storing and retriving meta data along with item
+      values. `(v1.2.*)`
 - [ ] Automatic expiration of values based on TTL, Session Timeout and other
-      expiration policies
-- [ ] Support for vault data backup and restore
+      expiration policies `(Future)`
+- [ ] Support for vault data backup and restore `(Future)`
 
 ## Contributing
 
@@ -245,3 +263,14 @@ Contributions to `vault-storage` are welcome. Please ensure that your code adher
 ## License
 
 `vault-storage` is [MIT licensed](./LICENSE).
+
+```javascript
+ // 1 week
+vault.setItem('yourKey', true, { ttl: 60 * 24 * 7 });
+
+// 2024-01-01 00:00:00
+vault.setItem('yourKey', true, {
+  expires: new Date('2024-01-01'),
+});
+
+```
