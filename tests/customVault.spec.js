@@ -30,6 +30,16 @@ describe("Vault", () => {
     expect(await vault.length()).toBe(0);
     expect(await vault.keys()).toEqual([]);
   });
+
+  it("supports item meta data", async () => {
+    const vault = new Vault("meta-store");
+    vault.setItem("name", "John", { expires: 1000 });
+    const name = await vault.getItem("name");
+    expect(name).toBe("John");
+
+    const meta = await vault.getItemMeta("name");
+    expect(meta.expires).toEqual(1000);
+  });
 })
 
 
