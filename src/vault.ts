@@ -25,13 +25,16 @@ export default class Vault {
   }
 
   /**
-   * Set an item in the database.
+   * Set an item in the database with additional metadata.
    * @param {string} key - The key of the item.
    * @param {any} value - The value of the item.
+   * @param {any} meta - The metadata for the item (e.g., ttl, expiration) or
+   *                     any other data that should be stored alongside the value.
    * @returns {Promise<void>}
    */
-  async setItem(key: string, value: any): Promise<void> {
-    return this.do(rw, (s:any) => s.put({ key, value }))
+  async setItem(key: string, value: any, meta: any = null): Promise<void> {
+    // Include meta in the object stored
+    return this.do(rw, (s: any) => s.put({ key, value, meta }));
   }
 
   /**
@@ -48,25 +51,25 @@ export default class Vault {
    * @param {string} key - The key of the item.
    * @returns {Promise<void>}
    */
-  async removeItem(key: string):Promise<void>             { return this.do(rw, (s:any) => s.delete(key)) }
+  async removeItem(key: string):Promise<void> { return this.do(rw, (s:any) => s.delete(key)) }
 
   /**
    * Clear the database.
    * @returns {Promise<void>}
    */
-  async clear(): Promise<void>                            { return this.do(rw, (s:any) => s.clear()) }
+  async clear(): Promise<void> { return this.do(rw, (s:any) => s.clear()) }
 
   /**
    * Get all keys in the database.
    * @returns {Promise<string[]>} - An array of keys.
    */
-  async keys(): Promise<string[]>                         { return this.do(r, (s:any) => s.getAllKeys()) }
+  async keys(): Promise<string[]> { return this.do(r, (s:any) => s.getAllKeys()) }
 
   /**
    * Get the number of items in the database.
    * @returns {Promise<number>} - The number of items.
    */
-  async length(): Promise<number>                         { return this.do(r, (s:any) => s.count()) }
+  async length(): Promise<number> { return this.do(r, (s:any) => s.count()) }
 
   // Initialize the database and return a promise.
   protected async init(): Promise<void> {
@@ -80,6 +83,14 @@ export default class Vault {
     })
   }
 
+  /**
+   * Get an item's metadata from the database.
+   * @param {string} key - The key of the item.
+   * @returns {Promise<any>} - The metadata of the item.
+   */
+  async getItemMeta(key: string): Promise<any> {
+    return this.do(r, (s: any) => s.get(key)).then((r: any) => r?.meta ?? null);
+  }
 
   // Execute a transaction and return a promise.
   protected async do(operationType: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest): Promise<any> {
