@@ -64,16 +64,18 @@ constructor(dbName:string, encConfig:EncConfig) {
  * @async
  * @param {string} key - The key of the item to set.
  * @param {any} value - The value of the item to set.
+ * @param {any} meta - The metadata for the item (e.g., ttl, expiration) or
+ *                     any other data that should be stored alongside the value.
  * @returns {Promise<void>} A Promise that resolves when the value has been set.
  */
-async setItem(key: string, value: any): Promise<void> {
+async setItem(key:string, value:any, meta:any = null): Promise<void> {
     if (this.encConfig === null || value === null || value === undefined) {
-      return super.setItem(key, value)
+      return super.setItem(key, value, meta)
     }
 
     const encKey = await this.getKey(key)
     const encValue = await encrypt(encKey, typeof value === 'string' ? value : JSON.stringify(value))
-    return super.setItem(key, encValue)
+    return super.setItem(key, encValue, meta)
   }
 
  /**
