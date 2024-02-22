@@ -200,12 +200,16 @@ is stored along with the item value and can be retrieved using the `getItemMeta`
 ```javascript
 // Set the additional meta data along with the item value.
 vault.setItem('yourKey', { any: 'data' }, {
-  expires: new Date('2024-12-31'),
+  roles: ['editor', 'moderator'],
 });
 
-// Get the meta data along with the item value.
+// Get the meta data for the specified item.
 const meta = await vault.getItemMeta('yourKey');
-console.log("yourKey expires on ", meta.expires);
+console.log(`yourKey is marked for '${meta.roles}' roles! `);
+
+if (user.roles.some(role => meta.roles.includes(role))) {
+  // User has access to the specified item in the vault.
+}
 ```
 
 ## API Reference
@@ -253,8 +257,7 @@ implementation status.
 
 - [x] Support for storing and retriving meta data along with item
       values. `(v1.2.*)`
-- [ ] Automatic expiration of values based on TTL, Session Timeout and other
-      expiration policies `(Future)`
+- [ ] Automatic expiration of values through `expires` meta data. `(Future)`
 - [ ] Support for vault data backup and restore `(Future)`
 
 ## Contributing
