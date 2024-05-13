@@ -257,8 +257,8 @@ implementation status.
 
 - [x] Support for storing and retriving meta data along with item
       values. `(v1.2.*)`
+- [x] Support for vault data backup and restore `(WIP)`
 - [ ] Automatic expiration of values through `expires` meta data. `(Future)`
-- [ ] Support for vault data backup and restore `(Future)`
 
 ## Contributing
 
