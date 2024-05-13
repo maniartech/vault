@@ -2,7 +2,7 @@
 
 Imagine this: You're developing a web application, and you need to store some data on the client side. LocalStorage seems like an easy and defacto storage solution, but soon you find yourself wrestling with its limitations. The storage capacity is insufficient, there's no built-in encryption for sensitive data, and handling structured data is a nightmare.
 
-Enter VaultStorage – your new best friend for browser-based storage! This **micro < 1KB (1.5KB with advanced features) library** leverages IndexedDB to offer a high-performance, asynchronous, and secure storage solution that is as easy to use as LocalStorage but packed with more power and flexibility.
+Introducing VaultStorage - the ultimate solution for browser-based storage! This lightweight library, with a **size of less than 1KB (1.5KB with advanced features)**, offers **an API similar to LocalStorage** but with enhanced power and flexibility. Leveraging IndexedDB, VaultStorage provides a high-performance, asynchronous, and secure storage solution that is as easy to use as LocalStorage, but with added capabilities and versatility. Say goodbye to the limitations of LocalStorage and embrace the seamless experience of VaultStorage.
 
 ## Why VaultStorage?
 
@@ -42,7 +42,7 @@ Now, you're all set to start using VaultStorage, which offers an API similar to 
 
 Using VaultStorage is very similar to using LocalStorage, but remember that VaultStorage is asynchronous, so you'll need to use `await` or handle Promises.
 
-**Setting Values:**
+**Setting Values:** Similar to local storage you can set values directly on the vault object. Or use `setItem` method.
 
 ```javascript
 // Set the values.
