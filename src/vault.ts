@@ -10,6 +10,7 @@ const s = 'store';
 export default class Vault {
   protected storageName = 'vault-storage';
   protected db: IDBDatabase | null = null;
+  [key:string]: any;
 
   /**
    * Creates new custom instance of custom Vault Storage.
