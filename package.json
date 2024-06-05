@@ -44,17 +44,22 @@
     "types"
   ],
   "scripts": {
-    "test": "karma start karma.conf.js",
+    "test": "playwright test",
     "clean": "node clean.js",
     "build:types": "tsc",
     "build:vault": "node ./build.js && npm run build:types",
     "build": "npm run clean && npm run build:vault && npm run build:types",
     "watch": "node ./build.js --watch --debug",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "playwright": "playwright"
   },
   "devDependencies": {
+    "@playwright/test": "^1.44.1",
+    "@types/chai": "^4.3.16",
     "@types/jasmine": "^5.1.4",
     "@types/node": "^20.10.6",
+    "@web/test-runner": "^0.18.2",
+    "chai": "^5.1.1",
     "esbuild": "^0.19.11",
     "jasmine-core": "^5.1.1",
     "karma": "^6.4.2",
@@ -64,7 +69,9 @@
     "karma-sourcemap-loader": "^0.4.0",
     "karma-spec-reporter": "^0.0.36",
     "karma-typescript": "^5.5.4",
+    "karma-typescript-es6-transform": "^5.5.4",
+    "playwright": "^1.44.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.4.5"
   }
 }
