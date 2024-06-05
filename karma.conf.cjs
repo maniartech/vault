@@ -11,12 +11,12 @@ module.exports = function(config) {
 
     // frameworks to use
     // available frameworks: https://www.npmjs.com/search?q=keywords:karma-adapter
-    frameworks: ['jasmine'],
+    frameworks: ['jasmine', 'karma-typescript'],
 
     // list of files / patterns to load in the browser
     files: [
-      { pattern: 'dist/*.js', type: 'module' },
-      { pattern: 'tests/**/*.spec.js', type: 'module' },
+      { pattern: 'src/**/*.ts' }, // Include TypeScript files in src
+      { pattern: 'tests/**/*.spec.ts' } // Include test files
     ],
 
     // list of files / patterns to exclude
@@ -26,7 +26,7 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://www.npmjs.com/search?q=keywords:karma-preprocessor
     preprocessors: {
-      '**/*.js': ['sourcemap']
+      '**/*.ts': ['karma-typescript'] // Preprocess TypeScript files
     },
 
     // plugins: [
@@ -34,13 +34,18 @@ module.exports = function(config) {
     // ],
 
     karmaTypescriptConfig: {
-      tsconfig: './tsconfig.json'
+      tsconfig: './tsconfig.json', // Use your TypeScript configuration
+      // bundlerOptions: {
+      //   transforms: [
+      //     require('karma-typescript-es6-transform')() // Transform ES6 modules to CommonJS
+      //   ]
+      // }
     },
 
     // test results reporter to use
     // possible values: 'dots', 'progress'
     // available reporters: https://www.npmjs.com/search?q=keywords:karma-reporter
-    reporters: ['progress'],
+    reporters: ['progress', 'karma-typescript'], // Add karma-typescript reporter
 
     // web server port
     port: 9876,
