@@ -93,6 +93,21 @@ export default class Vault {
     return this.do(r, (s: any) => s.get(key)).then((r: any) => r?.meta ?? null);
   }
 
+  /**
+   * Set an item's metadata in the database.
+   * @param {string} key - The key of the item.
+   * @param {any} meta - The metadata for the item.
+   * @returns {Promise<void>}
+   */
+  async setItemMeta(key: string, value: any): Promise<void> {
+    return this.do(rw, (s: any) => s.get(key)).then((r: any) => {
+      if (r) {
+        r.meta = (r.meta || {})[key] = value;
+        return this.do(rw, (s: any) => s.put(r));
+      }
+    });
+  }
+
   // Execute a transaction and return a promise.
   protected async do(operationType: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest): Promise<any> {
     if (!this.db) await this.init()
