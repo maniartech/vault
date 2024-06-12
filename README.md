@@ -277,7 +277,7 @@ import { importData, exportData } from 'vault-storage/backup';
 - `exportData(vault: Vault)`: Export the vault storage data.
 - `importData(data: any)`: Import the vault storage data.
 
-## Comparing Vault with LocalStorage
+## Comparing Vault storage with LocalStorage
 
 | Feature                  | Vault      | LocalStorage           |
 |--------------------------|--------------------------|------------------------|
@@ -290,7 +290,7 @@ import { importData, exportData } from 'vault-storage/backup';
 | **Built-in Data Import/Export** | Supports backup and restore of the vault storage | No built-in support for data import/export |
 | **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
 
-## Vault Roadmap
+## The Roadmap
 
 Since the vault is baesd on IndexDB database as storage provider, it is possible
 to make it more powerful and useful. Here are some planned features and their
