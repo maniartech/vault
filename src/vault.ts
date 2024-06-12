@@ -33,7 +33,7 @@ export default class Vault {
    *                     any other data that should be stored alongside the value.
    * @returns {Promise<void>}
    */
-  async setItem(key: string, value: any, meta: any = null): Promise<void> {
+  async setItem(key: string, value: any, meta: Record<string, any> | null = null): Promise<void> {
     // Include meta in the object stored
     return this.do(rw, (s: any) => s.put({ key, value, meta }));
   }
@@ -72,18 +72,6 @@ export default class Vault {
    */
   async length(): Promise<number> { return this.do(r, (s:any) => s.count()) }
 
-  // Initialize the database and return a promise.
-  protected async init(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.storageName, 1)
-      request.onupgradeneeded = (e:any) => {
-        e.target.result.createObjectStore(s, { keyPath: 'key' })
-      }
-      request.onsuccess = () => {this.db = request.result;resolve()}
-      request.onerror = (e) => reject(e)
-    })
-  }
-
   /**
    * Get an item's metadata from the database.
    * @param {string} key - The key of the item.
@@ -93,30 +81,37 @@ export default class Vault {
     return this.do(r, (s: any) => s.get(key)).then((r: any) => r?.meta ?? null);
   }
 
-  /**
-   * Set an item's metadata in the database.
-   * @param {string} key - The key of the item.
-   * @param {any} meta - The metadata for the item.
-   * @returns {Promise<void>}
-   */
-  async setItemMeta(key: string, value: any): Promise<void> {
-    return this.do(rw, (s: any) => s.get(key)).then((r: any) => {
-      if (r) {
-        r.meta = (r.meta || {})[key] = value;
-        return this.do(rw, (s: any) => s.put(r));
-      }
+  // Initialize the database and return a promise.
+  protected async init(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.storageName, 1);
+      request.onupgradeneeded = (e: any) => {
+        e.target.result.createObjectStore(s, { keyPath: 'key' });
+      };
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve();
+      };
+      request.onerror = (e) => {
+        reject(e);
+      };
     });
   }
 
   // Execute a transaction and return a promise.
   protected async do(operationType: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest): Promise<any> {
-    if (!this.db) await this.init()
+    if (!this.db) await this.init();
     const transaction = this.db!.transaction(s, operationType);
-    const request     = operation(transaction.objectStore(s));
+    const store = transaction.objectStore(s);
+    const request = operation(store);
 
     return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(operationType === r ? request.result : undefined);
-      request.onerror   = () => reject(request.error);
+      request.onsuccess = () => {
+        resolve(operationType === r ? request.result : undefined);
+      };
+      request.onerror = () => {
+        reject(request.error);
+      };
     });
   }
 }
