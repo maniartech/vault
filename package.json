@@ -37,7 +37,8 @@
   "exports": {
     ".": "./dist/index.js",
     "./vault": "./dist/vault.js",
-    "./secured-vault": "./dist/secured-vault.js"
+    "./secured-vault": "./dist/secured-vault.js",
+    "./backup": "./dist/backup.js"
   },
   "files": [
     "dist",
