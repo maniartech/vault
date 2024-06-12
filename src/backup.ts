@@ -1,9 +1,8 @@
 interface Vault {
-  getAllKeys(): Promise<string[]>;
-  get(key: string): Promise<any>;
-  getMetadata(key: string): Promise<any>;
-  set(key: string, value: any): Promise<void>;
-  setMetadata(key: string, metadata: any): Promise<void>;
+  keys(): Promise<string[]>;
+  getItem(key: string): Promise<any>;
+  getItemMeta(key: string): Promise<any>;
+  setItem(key: string, value: any, meta:Record<string, any> | null): Promise<void>;
 }
 
 /**
@@ -17,16 +16,16 @@ interface Vault {
  * @param vault - The vault from which to export data.
  * @returns A promise that resolves to a JSON string representing the data in the vault.
  */
-export async function exportData(vault: Vault): Promise<string> {
-    const data = [];
+export async function exportData(vault: Vault): Promise<Record<string, any>> {
+    const data: Record<string, any> = {}
 
-    for (const key of await vault.getAllKeys()) {
-        const value = await vault.get(key);
-        const metadata = await vault.getMetadata(key);
-        data.push({ key, value, metadata });
+    for (const key of await vault.keys()) {
+        const value = await vault.getItem(key);
+        const meta = await vault.getItemMeta(key);
+        data[key] = { value, meta };
     }
 
-    return JSON.stringify(data);
+    return data;
 }
 
 /**
@@ -39,11 +38,9 @@ export async function exportData(vault: Vault): Promise<string> {
  * @param jsonString - The JSON string from which to import data.
  * @returns A promise that resolves when the data has been imported.
  */
-export async function importData(vault: Vault, jsonString: string): Promise<void> {
-    const data = JSON.parse(jsonString);
-
-    for (const item of data) {
-        await vault.set(item.key, item.value);
-        await vault.setMetadata(item.key, item.metadata);
-    }
+export async function importData(vault: Vault, data: Record<string, any>): Promise<void> {
+  for (const key of Object.keys(data)) {
+      const { value, meta } = data[key];
+      await vault.setItem(key, value, meta ?? null);
+  }
 }
