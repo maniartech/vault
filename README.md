@@ -1,9 +1,10 @@
-# vault
+# Vault Storage
 
-`vault` is a sophisticated browser-based storage library that leverages the power
+Vault Storage is a sophisticated browser-based storage library that leverages the power
 of IndexedDB, offering significant improvements over traditional LocalStorage.
-As a high-performance, asynchronous solution for client-side storage, `vault`
-provides an intuitive and easy-to-use API similar to local and session storage, increasing the capacity of the storage, and adding support for structured data,
+As a high-performance, asynchronous solution for client-side storage, it
+provides an intuitive and easy-to-use API similar to local and session storage,
+increasing the capacity of the storage, and adding support for structured data,
 and support for multiple stores. It also provides a secure storage for sensitive
 data.
 
@@ -16,6 +17,7 @@ data.
 - **Multiple Stores Support**: Supports multiple stores with single api.
 - **Store Additional Meta Data**: Store additional meta data along with the item value.
 - **Encrypted Vault**: Provides a secure storage for sensitive data.
+- **Backup and Restore**: Export and import the vault storage data.
 - **Asynchronous**: Non-blocking, asynchronous API.
 - **Structured Data**: Supports structured data, including objects and arrays.
 
@@ -212,13 +214,68 @@ if (user.roles.some(role => meta.roles.includes(role))) {
 }
 ```
 
+### Backup and Restore Vault Storage
+
+With version 1.3 and above, you can export and import the vault storage data. Please note that while exporting the secured storage data, the data is exported in non-encrypted form. You must be careful while exporting the data and ensure that the data is exported in a secure manner.
+
+> We are still considering the best way to export the secured storage data in an encrypted form. If you have any suggestions, please let us know.
+
+```javascript
+import { importData, exportData } from 'vault-storage/backup';
+
+const data = await exportData(vault);
+
+// You can now save the data to a file or send it to the server.
+// For example, you can save the data to a file using the following code.
+const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url
+a.download = 'vault-data.json';
+a.click();
+
+// To import the data back to the vault, you can use the following code.
+const importedData = await importData(data);
+```
+
 ## API Reference
+
+### `Vault` Class
+
+The `Vault` class is the cornerstone of our storage capabilities, providing a functionality akin to `localStorage` and `sessionStorage`. It empowers you to establish custom storage instances, offering a intuitive and user-friendly API for data storage and retrieval. Here's a rundown of the methods available in the `Vault` class:
+
+```javascript
+import Vault from 'vault-storage/vault';
+```
 
 - `setItem(key: string, value: any, meta: any)`: Store data in the storage.
 - `getItem(key: string)`: Retrieve data from the storage.
 - `removeItem(key: string)`: Remove data from the storage.
 - `clear()`: Clear all data from the storage.
 - `length()`: Get the count of entries in the storage.
+
+### `vault` Default Instance
+
+The `vault` is a default instance of the `Vault` class, providing a ready-to-use storage solution without any setup or initialization.
+
+```javascript
+import vault from 'vault-storage';
+```
+
+### `SecuredVault` Class
+
+The `SecuredVault` class is a provides a secure storage for sensitive data. It encrypts the data before storing it in the storage. It uses browser's native crypto API to encrypt the data. The secured storage can be created using a fixed credentials or dynamic credentials (credentials that are generated based on the key). For more information, refer to the [usage section above](#secured-storage).
+
+### Import and Export Functions
+
+Additionally, the `vault-storage` library offers two functions for exporting and importing vault storage data:
+
+```javascript
+import { importData, exportData } from 'vault-storage/backup';
+```
+
+- `exportData(vault: Vault)`: Export the vault storage data.
+- `importData(data: any)`: Import the vault storage data.
 
 ## Comparing Vault with LocalStorage
 
@@ -230,6 +287,7 @@ if (user.roles.some(role => meta.roles.includes(role))) {
 | **Meta Data**            | Supports storing meta data along with the item value | No support for meta data |
 | **Encrypted Storage**    | Supports built-in secured storage | No built-in encryption support  |
 | **Data Types**           | Supports structured data, including objects and arrays | Only stores strings    |
+| **Built-in Data Import/Export** | Supports backup and restore of the vault storage | No built-in support for data import/export |
 | **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
 
 ## Vault Roadmap
@@ -257,7 +315,7 @@ implementation status.
 
 - [x] Support for storing and retriving meta data along with item
       values. `(v1.2.*)`
-- [x] Support for vault data backup and restore `(WIP)`
+- [x] Support for vault data backup and restore `(v1.3.*)`
 - [ ] Automatic expiration of values through `expires` meta data. `(Future)`
 
 ## Contributing
