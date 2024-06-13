@@ -2,13 +2,13 @@
   "compilerOptions": {
     "lib": ["ESNext", "DOM"],
 
-    /* Modules */
+    // Modules
     "module": "ESNext",
     "target": "ESNext",
     "rootDir": "./src",
     "moduleResolution": "node",
 
-    /* Emit */
+    // Emit
     "declaration": true,
     "emitDeclarationOnly": true,
     "outDir": "./types",
@@ -16,7 +16,7 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
 
-    /* Type Checking */
+    // Type Checking
     "strict": true,
   },
 
