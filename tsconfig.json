@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "lib": ["ESNext", "DOM"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"], // Targeting ESNext and including DOM and DOM.Iterable
 
     // Modules
     "module": "ESNext",
@@ -11,7 +11,7 @@
     // Emit
     "declaration": true,
     "emitDeclarationOnly": true,
-    "outDir": "./types",
+    "outDir": "./",
     "removeComments": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

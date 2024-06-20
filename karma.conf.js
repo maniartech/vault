@@ -15,8 +15,11 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      { pattern: 'dist/*.js', type: 'module' },
-      { pattern: 'tests/**/*.spec.js', type: 'module' },
+      './backup.js',
+      './index.js',
+      './secured-vault.js',
+      './vault.js',
+      { pattern: './**/*.spec.js', type: 'module' },
     ],
 
     // list of files / patterns to exclude

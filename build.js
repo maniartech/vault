@@ -3,6 +3,8 @@ const esbuild   = require('esbuild'); // For bundling and minifying JavaScript
 const fs        = require('fs'); // For file system operations
 const path      = require('path'); // For handling and transforming file paths
 const { exec }  = require('child_process'); // For running shell commands
+const { platform } = require('os');
+const { log } = require('console');
 
 const debug = process.argv.includes("--debug") || false;
 
@@ -58,7 +60,10 @@ const buildOptions = entryPoints.map(entryPoint => {
     minify: !debug,
     format: 'esm',
     sourcemap: debug,
-    outfile: `dist/${fileName}.js`,
+    outfile: `./${fileName}.js`,
+    platform: 'browser',
+    target: 'es2017',
+    logLevel: 'info',
   };
 });
 
