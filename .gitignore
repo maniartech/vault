@@ -38,6 +38,18 @@ bower_components
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 
+# Ignore all type declaration files
+*.d.ts
+
+# Ignore all js files in the root directory
+/*.js
+*.map
+
+# Do not ignore following js files in the root directory
+!build.js
+!kama.conf.js
+!clean.js
+
 # Dependency directories
 node_modules/
 jspm_packages/
