@@ -1,7 +1,7 @@
 {
   "name": "vault-storage",
   "description": "Vault, a micro yet robust browser storage library",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "author": "ManiarTech®️ - Mohamed Aamir Maniar",
   "license": "MIT",
   "repository": {
@@ -32,30 +32,19 @@
     "javascript-storage",
     "persistent-storage"
   ],
-  "main": "dist/index.js",
+
+  "main": "./index.js",
   "types": "types/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./types/index.d.ts"
-    },
-    "./vault": {
-      "import": "./dist/vault.js",
-      "types": "./types/vault.d.ts"
-    },
-    "./secured-vault": {
-      "import": "./dist/secured-vault.js",
-      "types": "./types/secured-vault.d.ts"
-    },
-    "./backup": {
-      "import": "./dist/backup.js",
-      "types": "./types/backup.d.ts"
-    }
-  },
 
   "files": [
-    "dist",
-    "types"
+    "./backup.js",
+    "./backup.d.ts",
+    "./index.js",
+    "./index.d.ts",
+    "./secured-vault.js",
+    "./secured-vault.d.ts",
+    "./vault.js",
+    "./vault.d.ts"
   ],
   "scripts": {
     "test": "karma start karma.conf.js",
