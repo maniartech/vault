@@ -1,4 +1,4 @@
-import SecuredVault from "../dist/secured-vault.js"
+import SecuredVault from "../secured-vault.js"
 
 describe("SecuredVault", () => {
   it("contains a SecuredVault specs using basic encConfig", async () => {

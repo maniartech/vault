@@ -1,4 +1,4 @@
-import Vault from "../dist/vault.js"
+import Vault from "../vault.js"
 
 describe("Vault", () => {
   it("contains a Vault spec for creating custom vault store", async () => {

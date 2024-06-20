@@ -1,5 +1,5 @@
-import { importData, exportData } from '../dist/backup.js';
-import Vault from "../dist/vault.js"
+import { importData, exportData } from '../backup.js';
+import Vault from '../vault.js';
 
 describe('import-export', () => {
     it('exportData', async () => {
@@ -14,7 +14,6 @@ describe('import-export', () => {
 
         expect(data.key2.value).toBe("key2 Value");
         expect(data.key2.meta.expires).toBe(2000);
-
     });
 
     it('importData', async () => {
