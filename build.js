@@ -62,8 +62,7 @@ const buildOptions = entryPoints.map(entryPoint => {
     sourcemap: debug,
     outfile: `./${fileName}.js`,
     platform: 'browser',
-    target: 'es2017',
-    logLevel: 'info',
+    target: 'es2017'
   };
 });
 
