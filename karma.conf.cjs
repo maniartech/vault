@@ -15,15 +15,16 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      './backup.js',
-      './index.js',
-      './secured-vault.js',
-      './vault.js',
-      { pattern: './**/*.spec.js', type: 'module' },
+      { pattern: './backup.js', type: 'module' },
+      { pattern: './index.js', type: 'module' },
+      { pattern: './secured-vault.js', type: 'module' },
+      { pattern: './vault.js', type: 'module' },
+      { pattern: './tests/*.spec.js', type: 'module' },
     ],
 
     // list of files / patterns to exclude
     exclude: [
+      // 'node_modules/**'
     ],
 
     // preprocess matching files before serving them to the browser
@@ -32,9 +33,11 @@ module.exports = function(config) {
       '**/*.js': ['sourcemap']
     },
 
-    // plugins: [
-    //   'karma-sourcemap-loader'
-    // ],
+    plugins: [
+      'karma-jasmine',
+      'karma-chrome-launcher',
+      'karma-sourcemap-loader'
+    ],
 
     karmaTypescriptConfig: {
       tsconfig: './tsconfig.json'
@@ -71,6 +74,10 @@ module.exports = function(config) {
 
     // Concurrency level
     // how many browser instances should be started simultaneously
-    concurrency: Infinity
+    concurrency: Infinity,
+
+    mime: {
+      'text/javascript': ['js', 'mjs']
+    }
   })
 }
