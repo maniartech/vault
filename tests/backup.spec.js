@@ -1,4 +1,4 @@
-import { importData, exportData } from '../backup.js';
+import { importData, exportData } from "../backup.js"
 import Vault from '../vault.js';
 
 describe('import-export', () => {
