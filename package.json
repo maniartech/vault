@@ -36,6 +36,29 @@
   "main": "./index.js",
   "types": "types/index.d.ts",
 
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.js",
+      "types": "./index.d.ts"
+    },
+    "./vault": {
+      "import": "./vault.js",
+      "require": "./vault.js",
+      "types": "./vault.d.ts"
+    },
+    "./secured-vault": {
+      "import": "./secured-vault.js",
+      "require": "./secured-vault.js",
+      "types": "./secured-vault.d.ts"
+    },
+    "./backup": {
+      "import": "./backup.js",
+      "require": "./backup.js",
+      "types": "./backup.d.ts"
+    }
+  },
+
   "files": [
     "./backup.js",
     "./backup.d.ts",
@@ -47,7 +70,7 @@
     "./vault.d.ts"
   ],
   "scripts": {
-    "test": "karma start karma.conf.js",
+    "test": "karma start karma.conf.cjs",
     "clean": "node clean.js",
     "build:types": "tsc",
     "build:vault": "node ./build.js && npm run build:types",
