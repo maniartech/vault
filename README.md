@@ -91,41 +91,58 @@ that are generated based on the key).
 import SecuredVault from 'vault-storage/secured-vault';
 
 // Secured storage using fixed credentials (password and salt).
-const authStorage = new SecuredVault("secured-storage", {
+// Remember, this method is not secure as the credentials are hardcoded in the code.
+// For production, you must use dynamic credentials.
+const authStorage = new SecuredVault("auth-storage", {
   password: "SADF@#$W$ERWESD",
   salt: "SDF@#$%SERWESD",
 });
 
-authStorage.token = "my-token"
-console.log("token", await authStorage.token)
+// -----
 
 // Secured storage using dynamic credentials.
-const securedStorage = new SecuredVault("secured-storage", (key) => {
+const authStorage = new SecuredVault("auth-storage", (key) => {
   const password = key === "token" ? "ASF@#$%QER()SDF" : "SXDFW#$%@#SDF";
   const salt = key.startsWith("key1") ? "xxx@xxxxxxxxxx" : "yyy@yyyyyyyyyy";
   return { password, salt };
 });
 
+// -----
+
 // Secured storage using promise based dynamic credentials.
-const sensitiveStorage = new SecuredVault("secured-storage", async (key) => {
+const authStorage = new SecuredVault("auth-storage", async (storageKey) => {
   return new Promise(async (resolve) => {
-    const { password, salt } = await fetchOrGenerateCredentialsFor(key)
+    const encryptedKey = await encryptKey(storageKey)
+    const encryptedResponse = await fetchOrGenerateCredentialsFor(encryptedKey)
+    const { password, salt } = await decryptResponse(encryptedResponse)
     resolve({ password, salt })
   });
 });
 
 
-// Once the secured vault is setup, usage is similar to the regular vault
-// storage. Just start using it!
+```
+
+Once the secured vault is setup, usage is easy and similar to the regular vault storage. To ensure that the data is stored securely, you must follow the best practices for storing the credentials. Such as:
+
+1. Use dynamic credentials for the secured storage it takes care of managing the complexity of the credentials.
+1. Use asymmetric encryption for key transmission. Encrypt sensitive keys using a public key before sending them to the server. Decrypt the keys locally using a private key.
+1. Generate and store encryption credentials using the Web Crypto API to ensure they are not accessible via JavaScript.
+1. Fetch encrypted credentials from the server instead of raw passwords and salts. Decrypt credentials locally using a pre-shared or derived key.
+1. Use CSP headers to mitigate XSS attacks
+1. Run your application in a secure context (HTTPS)
+1. Either use periodically rotate the encryption credentials or generate a unique ones for each storage key.
+
+```js
+// This is how you can use the enrypted storage, authStorage, created above.
 
 // Set the values. It stores the encrypted Uint8Array in the storage
 // against the key. If you want to immediately use the value, then
 // you must use await while setting the value.
-await authStorage.setItem("token", "eyJhbGciOiJIUzI1NiJ9.eyJSb2xlIjoiQWRtaW4iLCJJc3N1ZXIiOiJJc3N1ZXIiLCJVc2VybmFtZSI6IkphdmFJblVzZSIsImV4cCI6MTcwNzA2NzgwMywiaWF0IjoxNzA3MDY3ODAzfQ.XmPqTUN3KJeEArX58xVfHIQGGtm291p9ZamBvrflCMo")
+await authStorage.setItem("token", authToken)
 
-// Get the values. Remember to use await! As it's asynchronous.
-const token = await authStorage.token; // Decrypts the token from the authStorage
-                                       // and returns the original token.
+// Somewhere else in the code, you can get the value using the following code.
+const authToken = await authStorage.token; // Decrypts the token from the authStorage
+                                           // and returns the plain token.
 ```
 
 ### Setting Values
@@ -285,7 +302,7 @@ import { importData, exportData } from 'vault-storage/backup';
 | **Capacity**             | Large (up to browser limit, often no less than 250MB) | Limited (5MB typical)  |
 | **Multiple Stores**      | Supports multiple stores | Single store           |
 | **Meta Data**            | Supports storing meta data along with the item value | No support for meta data |
-| **Encrypted Storage**    | Supports built-in secured storage | No built-in encryption support  |
+| **Encrypted Storage**    | Supports built-in encrypted storage | No built-in encryption support  |
 | **Data Types**           | Supports structured data, including objects and arrays | Only stores strings    |
 | **Built-in Data Import/Export** | Supports backup and restore of the vault storage | No built-in support for data import/export |
 | **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
