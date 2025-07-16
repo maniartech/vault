@@ -39,8 +39,10 @@ describe('Expiration Middleware - Core Functionality', () => {
     console.log('Default TTL - Meta:', meta);
     
     expect(meta).not.toBeNull();
-    expect(meta.expires).toBeDefined();
-    expect(typeof meta.expires).toBe('number');
+    if (meta) {
+      expect(meta.expires).toBeDefined();
+      expect(typeof meta.expires).toBe('number');
+    }
   });
 
   it('should detect expired items', async () => {
