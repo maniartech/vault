@@ -39,7 +39,7 @@ bower_components
 build/Release
 middlewares
 types
-
+.temp
 
 # Ignore all type declaration files
 *.d.ts
