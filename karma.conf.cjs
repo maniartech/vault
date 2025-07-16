@@ -16,9 +16,17 @@ module.exports = function(config) {
     // list of files / patterns to load in the browser
     files: [
       { pattern: './backup.js', type: 'module' },
+      { pattern: './backup.d.ts', included: false },
       { pattern: './index.js', type: 'module' },
+      { pattern: './index.d.ts', included: false },
       { pattern: './secured-vault.js', type: 'module' },
+      { pattern: './secured-vault.d.ts', included: false },
       { pattern: './vault.js', type: 'module' },
+      { pattern: './vault.d.ts', included: false },
+      { pattern: './proxy-handler.js', type: 'module' },
+      { pattern: './proxy-handler.d.ts', included: false },
+      { pattern: './types/**/*.js', type: 'module' },
+      { pattern: './types/**/*.d.ts', included: false },
       { pattern: './tests/*.spec.js', type: 'module' },
     ],
 
@@ -36,7 +44,8 @@ module.exports = function(config) {
     plugins: [
       'karma-jasmine',
       'karma-chrome-launcher',
-      'karma-sourcemap-loader'
+      'karma-sourcemap-loader',
+      'karma-spec-reporter'
     ],
 
     karmaTypescriptConfig: {
@@ -46,7 +55,7 @@ module.exports = function(config) {
     // test results reporter to use
     // possible values: 'dots', 'progress'
     // available reporters: https://www.npmjs.com/search?q=keywords:karma-reporter
-    reporters: ['progress'],
+    reporters: ['progress', 'spec'],
 
     // web server port
     port: 9876,
@@ -56,7 +65,7 @@ module.exports = function(config) {
 
     // level of logging
     // possible values: config.LOG_DISABLE || config.LOG_ERROR || config.LOG_WARN || config.LOG_INFO || config.LOG_DEBUG
-    logLevel: config.LOG_INFO,
+    logLevel: config.LOG_DEBUG,
 
     // enable / disable watching file and executing tests whenever any file changes
     autoWatch: true,
@@ -67,6 +76,24 @@ module.exports = function(config) {
       'Chrome',
       // 'Firefox'
     ],
+
+    // Custom launcher for better debugging
+    customLaunchers: {
+      ChromeDebugging: {
+        base: 'Chrome',
+        flags: ['--remote-debugging-port=9333', '--disable-web-security', '--disable-features=VizDisplayCompositor']
+      }
+    },
+
+    // Browser console log level
+    browserConsoleLogOptions: {
+      level: 'log',
+      format: '%b %T: %m',
+      terminal: true
+    },
+
+    // Capture browser console output
+    captureConsole: true,
 
     // Continuous Integration mode
     // if true, Karma captures browsers, runs the tests and exits

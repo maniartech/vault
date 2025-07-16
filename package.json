@@ -32,10 +32,8 @@
     "javascript-storage",
     "persistent-storage"
   ],
-
   "main": "./index.js",
   "types": "types/index.d.ts",
-
   "exports": {
     ".": {
       "import": "./index.js",
@@ -56,9 +54,13 @@
       "import": "./backup.js",
       "require": "./backup.js",
       "types": "./backup.d.ts"
+    },
+    "./types": {
+      "import": "./types/index.js",
+      "require": "./types/index.js",
+      "types": "./types/index.d.ts"
     }
   },
-
   "files": [
     "./backup.js",
     "./backup.d.ts",
@@ -67,10 +69,12 @@
     "./secured-vault.js",
     "./secured-vault.d.ts",
     "./vault.js",
-    "./vault.d.ts"
+    "./vault.d.ts",
+    "./types/"
   ],
   "scripts": {
     "test": "karma start karma.conf.cjs",
+    "test:ci": "karma start karma.conf.cjs --single-run",
     "clean": "node clean.js",
     "build:types": "tsc",
     "build:vault": "node ./build.js && npm run build:types",
