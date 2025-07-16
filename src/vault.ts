@@ -172,7 +172,7 @@ export default class Vault {
    * @returns {Promise<any>} - The result of the operation.
    */
   protected async executeWithMiddleware(context: MiddlewareContext, operation: () => Promise<any>): Promise<any> {
-    let modifiedContext = context;
+    let modifiedContext: MiddlewareContext = { ...context, vaultInstance: this };
 
     try {
       // Run before hooks
