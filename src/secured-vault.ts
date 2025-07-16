@@ -1,5 +1,5 @@
-import proxyHandler from "./proxy-handler"
-import Vault        from "./vault"
+import proxyHandler from "./proxy-handler.js"
+import Vault        from "./vault.js"
 
 /**
  * Credential object that aims to provide the password and salt used for

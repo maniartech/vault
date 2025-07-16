@@ -1,4 +1,5 @@
-import proxyHandler from "./proxy-handler";
+import proxyHandler from "./proxy-handler.js";
+import { VaultItemMeta } from './types/vault.js';
 
 const r = 'readonly', rw = 'readwrite';
 const s = 'store';
@@ -10,7 +11,7 @@ const s = 'store';
 export default class Vault {
   protected storageName = 'vault-storage';
   protected db: IDBDatabase | null = null;
-  [key:string]: any;
+  [key: string]: any;
 
   /**
    * Creates new custom instance of custom Vault Storage.
@@ -33,8 +34,8 @@ export default class Vault {
    *                     any other data that should be stored alongside the value.
    * @returns {Promise<void>}
    */
-  async setItem(key: string, value: any, meta: Record<string, any> | null = null): Promise<void> {
-    // Include meta in the object stored
+  async setItem(key: string, value: any, meta: VaultItemMeta | null = null): Promise<void> {
+    if (!key || typeof key !== 'string') throw new Error('Key must be a non-empty string');
     return this.do(rw, (s: any) => s.put({ key, value, meta }));
   }
 
@@ -43,8 +44,9 @@ export default class Vault {
    * @param {string} key - The key of the item.
    * @returns {Promise<any>} - The value of the item.
    */
-  async getItem(key: string): Promise<any>  {
-    return this.do(r, (s: any) => s.get(key)).then((r:any) => r?.value ?? null)
+  async getItem(key: string): Promise<any> {
+    if (!key || typeof key !== 'string') throw new Error('Key must be a non-empty string');
+    return this.do(r, (s: any) => s.get(key)).then((r: any) => r?.value ?? null);
   }
 
   /**
@@ -52,25 +54,34 @@ export default class Vault {
    * @param {string} key - The key of the item.
    * @returns {Promise<void>}
    */
-  async removeItem(key: string):Promise<void> { return this.do(rw, (s:any) => s.delete(key)) }
+  async removeItem(key: string): Promise<void> {
+    if (!key || typeof key !== 'string') throw new Error('Key must be a non-empty string');
+    return this.do(rw, (s: any) => s.delete(key));
+  }
 
   /**
    * Clear the database.
    * @returns {Promise<void>}
    */
-  async clear(): Promise<void> { return this.do(rw, (s:any) => s.clear()) }
+  async clear(): Promise<void> {
+    return this.do(rw, (s: any) => s.clear());
+  }
 
   /**
    * Get all keys in the database.
    * @returns {Promise<string[]>} - An array of keys.
    */
-  async keys(): Promise<string[]> { return this.do(r, (s:any) => s.getAllKeys()) }
+  async keys(): Promise<string[]> {
+    return this.do(r, (s: any) => s.getAllKeys());
+  }
 
   /**
    * Get the number of items in the database.
    * @returns {Promise<number>} - The number of items.
    */
-  async length(): Promise<number> { return this.do(r, (s:any) => s.count()) }
+  async length(): Promise<number> {
+    return this.do(r, (s: any) => s.count());
+  }
 
   /**
    * Get an item's metadata from the database.
@@ -78,6 +89,7 @@ export default class Vault {
    * @returns {Promise<any>} - The metadata of the item.
    */
   async getItemMeta(key: string): Promise<any> {
+    if (!key || typeof key !== 'string') throw new Error('Key must be a non-empty string');
     return this.do(r, (s: any) => s.get(key)).then((r: any) => r?.meta ?? null);
   }
 
@@ -93,7 +105,7 @@ export default class Vault {
         resolve();
       };
       request.onerror = (e) => {
-        reject(e);
+        reject(new Error(`Failed to open database: ${e}`));
       };
     });
   }
@@ -110,7 +122,7 @@ export default class Vault {
         resolve(operationType === r ? request.result : undefined);
       };
       request.onerror = () => {
-        reject(request.error);
+        reject(new Error(`Database operation failed: ${request.error?.message || 'Unknown error'}`));
       };
     });
   }

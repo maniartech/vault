@@ -10,7 +10,6 @@
 
     // Emit
     "declaration": true,
-    "emitDeclarationOnly": true,
     "outDir": "./",
     "removeComments": false,
     "esModuleInterop": true,
