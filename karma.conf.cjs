@@ -27,6 +27,8 @@ module.exports = function(config) {
       { pattern: './proxy-handler.d.ts', included: false },
       { pattern: './types/**/*.js', type: 'module' },
       { pattern: './types/**/*.d.ts', included: false },
+      { pattern: './middlewares/**/*.js', type: 'module' },
+      { pattern: './middlewares/**/*.d.ts', included: false },
       { pattern: './tests/*.spec.js', type: 'module' },
     ],
 
