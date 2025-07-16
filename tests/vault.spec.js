@@ -1,6 +1,16 @@
 import vault from "../index.js"
 
 describe("Vault", () => {
+  beforeEach(async () => {
+    // Clear vault before each test
+    await vault.clear();
+  });
+
+  afterEach(async () => {
+    // Clean up after each test
+    await vault.clear();
+  });
+
   it("contains a Vault spec for testing built-in defafult vault store", async () => {
     vault.firstName = "John";
     const firstName = await vault.getItem("firstName");
