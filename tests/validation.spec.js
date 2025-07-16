@@ -3,43 +3,41 @@
  */
 
 import Vault from '../vault.js';
-import { validationMiddleware, strictValidationMiddleware, createValidationMiddleware, ValidationError } from '../middlewares/validation.js';
+import { validationMiddleware, ValidationError } from '../middlewares/validation.js';
 
 describe('Validation Middleware', () => {
   let vault;
 
   beforeEach(() => {
     vault = new Vault('test-validation-vault');
-    vault.use(validationMiddleware);
+    vault.use(validationMiddleware()); // Basic validation with no custom validators
   });
 
   afterEach(async () => {
     await vault.clear();
   });
 
-  describe('Key Validation', () => {
+  describe('Basic Validation', () => {
     it('should reject null key', async () => {
-      await expectAsync(vault.setItem(null, 'value')).toBeRejectedWithError(ValidationError, 'Key is required');
+      await expectAsync(vault.setItem(null, 'value')).toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
     });
 
     it('should reject undefined key', async () => {
-      await expectAsync(vault.setItem(undefined, 'value')).toBeRejectedWithError(ValidationError, 'Key is required');
+      await expectAsync(vault.setItem(undefined, 'value')).toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
     });
 
     it('should reject empty string key', async () => {
-      await expectAsync(vault.setItem('', 'value')).toBeRejectedWithError(ValidationError, 'Key cannot be empty');
+      await expectAsync(vault.setItem('', 'value')).toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
     });
 
     it('should reject non-string key', async () => {
-      await expectAsync(vault.setItem(123, 'value')).toBeRejectedWithError(ValidationError, 'Key must be a string');
+      await expectAsync(vault.setItem(123, 'value')).toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
     });
 
     it('should accept valid string key', async () => {
       await expectAsync(vault.setItem('valid-key', 'value')).toBeResolved();
     });
-  });
 
-  describe('Metadata Validation', () => {
     it('should accept null metadata', async () => {
       await expectAsync(vault.setItem('key', 'value', null)).toBeResolved();
     });
@@ -57,38 +55,32 @@ describe('Validation Middleware', () => {
     });
 
     it('should reject array metadata', async () => {
-      await expectAsync(vault.setItem('key', 'value', ['array'])).toBeRejectedWithError(ValidationError, 'Meta cannot be an array');
+      await expectAsync(vault.setItem('key', 'value', ['array'])).toBeRejectedWithError(ValidationError, 'Meta must be an object or null');
     });
-  });
 
-  describe('Get Operations Validation', () => {
     it('should validate key for getItem', async () => {
-      await expectAsync(vault.getItem('')).toBeRejectedWithError(ValidationError, 'Key cannot be empty');
+      await expectAsync(vault.getItem('')).toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
     });
 
     it('should validate key for getItemMeta', async () => {
-      await expectAsync(vault.getItemMeta(null)).toBeRejectedWithError(ValidationError, 'Key is required');
+      await expectAsync(vault.getItemMeta(null)).toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
     });
 
     it('should validate key for removeItem', async () => {
-      await expectAsync(vault.removeItem(123)).toBeRejectedWithError(ValidationError, 'Key must be a string');
+      await expectAsync(vault.removeItem(123)).toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
     });
   });
 
-  describe('Custom Validation Middleware', () => {
-    it('should support custom validation functions', async () => {
+  describe('Custom Validation', () => {
+    it('should support single custom validation function', async () => {
       const customValidator = (context) => {
         if (context.operation === 'set' && context.key === 'forbidden') {
-          throw new ValidationError('Key "forbidden" is not allowed', 'key');
+          throw new ValidationError('Key "forbidden" is not allowed');
         }
       };
 
-      const customMiddleware = createValidationMiddleware({
-        customValidators: [customValidator]
-      });
-
       const customVault = new Vault('custom-validation-vault');
-      customVault.use(customMiddleware);
+      customVault.use(validationMiddleware(customValidator));
 
       await expectAsync(customVault.setItem('allowed', 'value')).toBeResolved();
       await expectAsync(customVault.setItem('forbidden', 'value')).toBeRejectedWithError(ValidationError, 'Key "forbidden" is not allowed');
@@ -96,47 +88,21 @@ describe('Validation Middleware', () => {
       await customVault.clear();
     });
 
-    it('should support configurable validation options', async () => {
-      const customMiddleware = createValidationMiddleware({
-        validateKeys: false, // Disable key validation
-        validateMeta: true,
-        validateTTL: false // Disable TTL validation
-      });
-
-      const customVault = new Vault('configurable-validation-vault');
-      customVault.use(customMiddleware);
-
-      // Should allow empty key since key validation is disabled
-      await expectAsync(customVault.setItem('', 'value')).toBeResolved();
-      
-      // Should allow invalid TTL since TTL validation is disabled
-      await expectAsync(customVault.setItem('key', 'value', { ttl: 'invalid' })).toBeResolved();
-      
-      // Should still validate metadata structure since validateMeta is true
-      await expectAsync(customVault.setItem('key', 'value', 'invalid-meta')).toBeRejectedWithError(ValidationError, 'Meta must be an object or null');
-      
-      await customVault.clear();
-    });
-
     it('should support multiple custom validators', async () => {
       const keyValidator = (context) => {
         if (context.key && context.key.startsWith('admin_')) {
-          throw new ValidationError('Admin keys are not allowed', 'key');
+          throw new ValidationError('Admin keys are not allowed');
         }
       };
 
       const valueValidator = (context) => {
         if (context.operation === 'set' && typeof context.value === 'string' && context.value.includes('password')) {
-          throw new ValidationError('Values containing "password" are not allowed', 'value');
+          throw new ValidationError('Values containing "password" are not allowed');
         }
       };
 
-      const customMiddleware = createValidationMiddleware({
-        customValidators: [keyValidator, valueValidator]
-      });
-
       const customVault = new Vault('multi-validator-vault');
-      customVault.use(customMiddleware);
+      customVault.use(validationMiddleware(keyValidator, valueValidator));
 
       await expectAsync(customVault.setItem('user_key', 'safe_value')).toBeResolved();
       await expectAsync(customVault.setItem('admin_key', 'value')).toBeRejectedWithError(ValidationError, 'Admin keys are not allowed');
@@ -144,39 +110,42 @@ describe('Validation Middleware', () => {
       
       await customVault.clear();
     });
-  });
 
-  describe('Strict Validation Middleware', () => {
-    beforeEach(() => {
-      vault = new Vault('strict-validation-vault');
-      vault.use(strictValidationMiddleware);
-    });
+    it('should run basic validation before custom validators', async () => {
+      const customValidator = (context) => {
+        // Only throw for set operations to avoid interfering with clear()
+        if (context.operation === 'set') {
+          throw new ValidationError('Custom validator should not run');
+        }
+      };
 
-    it('should reject non-serializable values', async () => {
-      const circularObj = {};
-      circularObj.self = circularObj;
+      const customVault = new Vault('basic-first-vault');
+      customVault.use(validationMiddleware(customValidator));
+
+      // Basic validation should fail first, so custom validator never runs
+      await expectAsync(customVault.setItem('', 'value')).toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
       
-      await expectAsync(vault.setItem('key', circularObj)).toBeRejectedWithError(ValidationError, 'Value must be JSON serializable');
+      await customVault.clear();
     });
 
-    it('should reject very long keys', async () => {
-      const longKey = 'a'.repeat(251);
-      await expectAsync(vault.setItem(longKey, 'value')).toBeRejectedWithError(ValidationError, 'Key length should not exceed 250 characters');
-    });
+    it('should support type validation example', async () => {
+      const typeValidator = (ctx) => {
+        if (ctx.operation === 'set') {
+          const o = ctx.value;
+          if (typeof o !== 'object' || !o.type) {
+            throw new ValidationError('type missing!');
+          }
+        }
+      };
 
-    it('should accept reasonable key lengths', async () => {
-      const reasonableKey = 'a'.repeat(250);
-      await expectAsync(vault.setItem(reasonableKey, 'value')).toBeResolved();
-    });
+      const customVault = new Vault('type-validation-vault');
+      customVault.use(validationMiddleware(typeValidator));
 
-    it('should reject metadata with reserved fields', async () => {
-      await expectAsync(vault.setItem('key', 'value', { key: 'reserved' })).toBeRejectedWithError(ValidationError, 'Meta cannot contain reserved field: key');
-      await expectAsync(vault.setItem('key', 'value', { value: 'reserved' })).toBeRejectedWithError(ValidationError, 'Meta cannot contain reserved field: value');
-      await expectAsync(vault.setItem('key', 'value', { _version: 1 })).toBeRejectedWithError(ValidationError, 'Meta cannot contain reserved field: _version');
-    });
-
-    it('should accept valid metadata without reserved fields', async () => {
-      await expectAsync(vault.setItem('key', 'value', { custom: 'data', ttl: 1000 })).toBeResolved();
+      await expectAsync(customVault.setItem('key', { type: 'user', name: 'John' })).toBeResolved();
+      await expectAsync(customVault.setItem('key', { name: 'John' })).toBeRejectedWithError(ValidationError, 'type missing!');
+      await expectAsync(customVault.setItem('key', 'string-value')).toBeRejectedWithError(ValidationError, 'type missing!');
+      
+      await customVault.clear();
     });
   });
 });
