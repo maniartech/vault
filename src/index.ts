@@ -9,18 +9,15 @@ export type {
   StoredVaultItem,
   MiddlewareContext,
   Middleware,
+  VaultErrorInfo,
+  VaultErrorLike,
   EncryptionCredential,
   EncryptionCredentialProvider,
   EncryptionConfig,
-  VaultErrorInfo,
-  VaultErrorLike,
-  VaultKey,
-  VaultValue,
-  VaultMetadata,
-  PartialExcept,
-  ExtractVaultValue,
-  CreateVaultItem,
-  VaultOperationResult
+  CryptoResult,
+  SecuredVaultOptions,
+  CryptoAlgorithmConfig,
+  KeyCacheEntry
 } from './types/index.js';
 
 // Export error codes enum
