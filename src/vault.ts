@@ -1,5 +1,6 @@
 import proxyHandler from "./proxy-handler.js";
 import { VaultItemMeta } from './types/vault.js';
+import { Middleware, MiddlewareContext } from './types/middleware.js';
 
 const r = 'readonly', rw = 'readwrite';
 const s = 'store';
@@ -11,6 +12,7 @@ const s = 'store';
 export default class Vault {
   protected storageName = 'vault-storage';
   protected db: IDBDatabase | null = null;
+  protected middlewares: Middleware[] = [];
   [key: string]: any;
 
   /**
@@ -35,8 +37,23 @@ export default class Vault {
    * @returns {Promise<void>}
    */
   async setItem(key: string, value: any, meta: VaultItemMeta | null = null): Promise<void> {
-    if (!key || typeof key !== 'string') throw new Error('Key must be a non-empty string');
-    return this.do(rw, (s: any) => s.put({ key, value, meta }));
+    const context: MiddlewareContext = {
+      operation: 'set',
+      key,
+      value,
+      meta
+    };
+
+    return this.executeWithMiddleware(context, async () => {
+      if (!context.key || typeof context.key !== 'string') {
+        throw new Error('Key must be a non-empty string');
+      }
+      return this.do(rw, (s: any) => s.put({ 
+        key: context.key, 
+        value: context.value, 
+        meta: context.meta 
+      }));
+    });
   }
 
   /**
@@ -45,8 +62,17 @@ export default class Vault {
    * @returns {Promise<any>} - The value of the item.
    */
   async getItem(key: string): Promise<any> {
-    if (!key || typeof key !== 'string') throw new Error('Key must be a non-empty string');
-    return this.do(r, (s: any) => s.get(key)).then((r: any) => r?.value ?? null);
+    const context: MiddlewareContext = {
+      operation: 'get',
+      key
+    };
+
+    return this.executeWithMiddleware(context, async () => {
+      if (!context.key || typeof context.key !== 'string') {
+        throw new Error('Key must be a non-empty string');
+      }
+      return this.do(r, (s: any) => s.get(context.key)).then((r: any) => r?.value ?? null);
+    });
   }
 
   /**
@@ -55,8 +81,17 @@ export default class Vault {
    * @returns {Promise<void>}
    */
   async removeItem(key: string): Promise<void> {
-    if (!key || typeof key !== 'string') throw new Error('Key must be a non-empty string');
-    return this.do(rw, (s: any) => s.delete(key));
+    const context: MiddlewareContext = {
+      operation: 'remove',
+      key
+    };
+
+    return this.executeWithMiddleware(context, async () => {
+      if (!context.key || typeof context.key !== 'string') {
+        throw new Error('Key must be a non-empty string');
+      }
+      return this.do(rw, (s: any) => s.delete(context.key));
+    });
   }
 
   /**
@@ -64,7 +99,13 @@ export default class Vault {
    * @returns {Promise<void>}
    */
   async clear(): Promise<void> {
-    return this.do(rw, (s: any) => s.clear());
+    const context: MiddlewareContext = {
+      operation: 'clear'
+    };
+
+    return this.executeWithMiddleware(context, async () => {
+      return this.do(rw, (s: any) => s.clear());
+    });
   }
 
   /**
@@ -72,7 +113,13 @@ export default class Vault {
    * @returns {Promise<string[]>} - An array of keys.
    */
   async keys(): Promise<string[]> {
-    return this.do(r, (s: any) => s.getAllKeys());
+    const context: MiddlewareContext = {
+      operation: 'keys'
+    };
+
+    return this.executeWithMiddleware(context, async () => {
+      return this.do(r, (s: any) => s.getAllKeys());
+    });
   }
 
   /**
@@ -80,7 +127,13 @@ export default class Vault {
    * @returns {Promise<number>} - The number of items.
    */
   async length(): Promise<number> {
-    return this.do(r, (s: any) => s.count());
+    const context: MiddlewareContext = {
+      operation: 'length'
+    };
+
+    return this.executeWithMiddleware(context, async () => {
+      return this.do(r, (s: any) => s.count());
+    });
   }
 
   /**
@@ -89,8 +142,75 @@ export default class Vault {
    * @returns {Promise<any>} - The metadata of the item.
    */
   async getItemMeta(key: string): Promise<any> {
-    if (!key || typeof key !== 'string') throw new Error('Key must be a non-empty string');
-    return this.do(r, (s: any) => s.get(key)).then((r: any) => r?.meta ?? null);
+    const context: MiddlewareContext = {
+      operation: 'getItemMeta',
+      key
+    };
+
+    return this.executeWithMiddleware(context, async () => {
+      if (!context.key || typeof context.key !== 'string') {
+        throw new Error('Key must be a non-empty string');
+      }
+      return this.do(r, (s: any) => s.get(context.key)).then((r: any) => r?.meta ?? null);
+    });
+  }
+
+  /**
+   * Register a middleware to be used in the vault operations pipeline.
+   * @param {Middleware} middleware - The middleware to register.
+   * @returns {Vault} - Returns this instance for method chaining.
+   */
+  use(middleware: Middleware): this {
+    this.middlewares.push(middleware);
+    return this;
+  }
+
+  /**
+   * Execute an operation through the middleware pipeline.
+   * @param {MiddlewareContext} context - The operation context.
+   * @param {Function} operation - The core operation to execute.
+   * @returns {Promise<any>} - The result of the operation.
+   */
+  protected async executeWithMiddleware(context: MiddlewareContext, operation: () => Promise<any>): Promise<any> {
+    let modifiedContext = context;
+
+    try {
+      // Run before hooks
+      for (const middleware of this.middlewares) {
+        if (middleware.before) {
+          modifiedContext = await middleware.before(modifiedContext);
+        }
+      }
+
+      // Execute the core operation
+      let result = await operation();
+
+      // Run after hooks
+      for (const middleware of this.middlewares) {
+        if (middleware.after) {
+          result = await middleware.after(modifiedContext, result);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      let handledError = error as Error;
+
+      // Run error hooks
+      for (const middleware of this.middlewares) {
+        if (middleware.error) {
+          const errorResult = await middleware.error(modifiedContext, handledError);
+          if (errorResult instanceof Error) {
+            handledError = errorResult;
+          } else if (errorResult === undefined) {
+            // If middleware returns undefined, it handled the error
+            return null;
+          }
+        }
+      }
+
+      throw handledError;
+    }
   }
 
   // Initialize the database and return a promise.
