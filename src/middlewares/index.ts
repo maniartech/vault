@@ -3,6 +3,7 @@
  */
 
 export { 
-  validationMiddleware, 
-  ValidationError 
+  validationMiddleware,
+  ValidationError,
+  type CustomValidator
 } from './validation.js';
