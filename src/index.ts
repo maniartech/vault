@@ -26,9 +26,15 @@ export { VaultErrorCode } from './types/index.js';
 // Export classes for direct instantiation
 export { default as Vault } from './vault.js';
 export { default as SecuredVault } from './secured-vault.js';
+export { default as EncryptedVault } from './encrypted-vault.js';
 
 // Export utility functions
 export { exportData, importData } from './backup.js';
+
+// Export middleware functions
+export { encryptionMiddleware, EncryptionError } from './middlewares/encryption.js';
+export { expirationMiddleware } from './middlewares/expiration.js';
+export { validationMiddleware } from './middlewares/validation.js';
 
 /**
  * The default vault storage instance that provides a convenient way to use the
