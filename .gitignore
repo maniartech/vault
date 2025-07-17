@@ -37,8 +37,6 @@ bower_components
 
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
-middlewares
-types
 .temp
 
 # Ignore all type declaration files
@@ -104,8 +102,9 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
-types
+/dist/
+/types/
+/middlewares/
 
 # Gatsby files
 .cache/
@@ -147,3 +146,6 @@ types
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Disable temporary specs files
+*/specs/**
