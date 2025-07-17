@@ -12,3 +12,9 @@ export {
   expirationMiddleware,
   type ExpirationOptions
 } from './expiration.js';
+
+export {
+  encryptionMiddleware,
+  EncryptionError,
+  type EncryptionOptions
+} from './encryption.js';
