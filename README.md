@@ -1,5 +1,11 @@
 # Vault Storage
 
+[![npm version](https://img.shields.io/npm/v/vault-storage.svg)](https://www.npmjs.com/package/vault-storage)
+[![GitHub release](https://img.shields.io/github/v/release/maniartech/vault)](https://github.com/maniartech/vault/releases)
+
+> **Note:** The `master` branch contains work for the next major release.
+> For the latest stable release, see [Releases](https://github.com/maniartech/vault/releases) or [npm](https://www.npmjs.com/package/vault-storage).
+
 Vault Storage is a sophisticated browser-based storage library that leverages the power
 of IndexedDB, offering significant improvements over traditional LocalStorage.
 As a high-performance, asynchronous solution for client-side storage, it
