@@ -33,13 +33,13 @@ export class EncryptionError extends Error {
  * @returns Middleware instance that handles encryption/decryption
  */
 export function encryptionMiddleware(
-  config: EncryptionConfig, 
+  config: EncryptionConfig,
   options: EncryptionOptions = {}
 ): Middleware {
   const keyCache = new Map<string, CryptoKey>();
-  const { 
+  const {
     keyDerivationIterations = 100000,
-    maxCachedKeys = 100 
+    maxCachedKeys = 100
   } = options;
 
   /**
@@ -51,25 +51,32 @@ export function encryptionMiddleware(
     }
 
     let credential: EncryptionCredential;
-    
+
     if (typeof config === 'function') {
       credential = await config(key);
-    } else if (config) {
-      credential = config;
+    } else if (config !== null) {
+      const c = config as EncryptionCredential;
+      if (!c.password || !c.salt) {
+        throw new EncryptionError('Invalid encryption credential');
+      }
+      credential = c;
     } else {
       throw new EncryptionError('No encryption configuration provided');
     }
 
     const cryptoKey = await generateKey(
-      credential.password, 
+      credential.password,
       await generateSalt(credential.salt),
       keyDerivationIterations
     );
 
     // Manage cache size
     if (keyCache.size >= maxCachedKeys) {
-      const firstKey = keyCache.keys().next().value;
-      keyCache.delete(firstKey);
+      const iter = keyCache.keys().next();
+      const firstKey: string | undefined = iter.value;
+      if (firstKey !== undefined) {
+        keyCache.delete(firstKey);
+      }
     }
 
     keyCache.set(key, cryptoKey);
@@ -83,13 +90,13 @@ export function encryptionMiddleware(
       // Only process set operations for encryption
       if (context.operation === 'set' && config !== null) {
         const { key, value } = context;
-        
+
         if (key && value !== null && value !== undefined) {
           try {
             const encKey = await getKey(key);
             const dataToEncrypt = typeof value === 'string' ? value : JSON.stringify(value);
             const encryptedValue = await encrypt(encKey, dataToEncrypt);
-            
+
             // Store as a special object that IndexedDB can handle reliably
             context.value = {
               __encrypted: true,
@@ -111,7 +118,7 @@ export function encryptionMiddleware(
       // Only process get operations for decryption
       if (context.operation === 'get' && config !== null && result !== null) {
         const { key } = context;
-        
+
         if (key) {
           try {
             // Check if this is encrypted data
@@ -119,7 +126,7 @@ export function encryptionMiddleware(
               const encKey = await getKey(key);
               const encryptedData = new Uint8Array(result.data).buffer;
               const decryptedValue = await decrypt(encKey, encryptedData);
-              
+
               // Try to parse as JSON, fallback to string
               try {
                 return JSON.parse(decryptedValue);
@@ -127,7 +134,7 @@ export function encryptionMiddleware(
                 return decryptedValue;
               }
             }
-            
+
             // Not encrypted data, return as-is
             return result;
           } catch (error) {
@@ -147,12 +154,12 @@ export function encryptionMiddleware(
       if (error instanceof EncryptionError) {
         return error;
       }
-      
+
       // Check if this might be a crypto-related error
       if (error.message.includes('crypto') || error.message.includes('encrypt') || error.message.includes('decrypt')) {
         return new EncryptionError(`Encryption operation failed: ${error.message}`, error);
       }
-      
+
       return error;
     }
   };
@@ -172,8 +179,8 @@ async function generateSalt(userInput: string): Promise<Uint8Array> {
  * Generates a cryptographic key using PBKDF2
  */
 async function generateKey(
-  password: string, 
-  salt: Uint8Array, 
+  password: string,
+  salt: Uint8Array,
   iterations: number = 100000
 ): Promise<CryptoKey> {
   const passwordBuffer = new TextEncoder().encode(password);
@@ -219,7 +226,7 @@ async function encrypt(key: CryptoKey, data: string): Promise<ArrayBuffer> {
       name: "AES-GCM",
       iv: iv
     }, key, encodedData);
-    
+
     // Combine IV and encrypted data
     return new Uint8Array([...iv, ...new Uint8Array(encryptedData)]).buffer;
   } catch (error) {
@@ -242,7 +249,7 @@ async function decrypt(key: CryptoKey, encryptedData: ArrayBuffer): Promise<stri
       name: "AES-GCM",
       iv: new Uint8Array(iv)
     }, key, data);
-    
+
     return new TextDecoder().decode(decryptedData);
   } catch (error) {
     throw new EncryptionError(
