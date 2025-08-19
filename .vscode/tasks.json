@@ -1,0 +1,45 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build library with esbuild",
+			"type": "shell",
+			"command": "yarn build:vault",
+			"args": [],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Rebuild after patches",
+			"type": "shell",
+			"command": "yarn build:vault",
+			"args": [],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Rebuild after TypeScript fixes",
+			"type": "shell",
+			"command": "yarn build:vault",
+			"args": [],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Rebuild after getItem fix",
+			"type": "shell",
+			"command": "yarn build:vault",
+			"args": [],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		}
+	]
+}
