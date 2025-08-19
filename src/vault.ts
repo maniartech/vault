@@ -48,10 +48,10 @@ export default class Vault {
       if (!context.key || typeof context.key !== 'string') {
         throw new Error('Key must be a non-empty string');
       }
-      return this.do(rw, (s: any) => s.put({ 
-        key: context.key, 
-        value: context.value, 
-        meta: context.meta 
+      return this.do(rw, (s: any) => s.put({
+        key: context.key,
+        value: context.value,
+        meta: context.meta
       }));
     });
   }
@@ -71,7 +71,7 @@ export default class Vault {
       if (!context.key || typeof context.key !== 'string') {
         throw new Error('Key must be a non-empty string');
       }
-      return this.do(r, (s: any) => s.get(context.key)).then((r: any) => r?.value ?? null);
+  return this.do(r, (s: any) => s.get(context.key)).then((r: any) => (r == null ? null : r.value));
     });
   }
 
@@ -172,15 +172,19 @@ export default class Vault {
    * @returns {Promise<any>} - The result of the operation.
    */
   protected async executeWithMiddleware(context: MiddlewareContext, operation: () => Promise<any>): Promise<any> {
-    let modifiedContext: MiddlewareContext = { ...context, vaultInstance: this };
+  let modifiedContext: MiddlewareContext = { ...context, vaultInstance: this };
 
     try {
       // Run before hooks
       for (const middleware of this.middlewares) {
         if (middleware.before) {
-          modifiedContext = await middleware.before(modifiedContext);
+      modifiedContext = await middleware.before(modifiedContext);
         }
       }
+
+    // IMPORTANT: propagate any modifications back to the original context
+    // so the core operation uses updated key/value/meta set by 'before' hooks
+    Object.assign(context, modifiedContext);
 
       // Execute the core operation
       let result = await operation();
