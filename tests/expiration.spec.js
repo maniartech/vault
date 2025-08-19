@@ -310,7 +310,9 @@ describe('Expiration Middleware', () => {
 
             // Mock getItemMeta to throw error
             const originalGetItemMeta = vault.getItemMeta;
-            vault.getItemMeta = jasmine.createSpy('getItemMeta').and.returnValue(Promise.reject(new Error('Database error')));
+            vault.getItemMeta = jasmine.createSpy('getItemMeta').and.callFake(() => {
+                return Promise.reject(new Error('Database error!'));
+            });
 
             // Should not throw error, just return the value
             const result = await vault.getItem('key');
@@ -328,7 +330,9 @@ describe('Expiration Middleware', () => {
 
             // Mock removeItem to throw error
             const originalRemoveItem = vault.removeItem;
-            vault.removeItem = jasmine.createSpy('removeItem').and.returnValue(Promise.reject(new Error('Remove failed')));
+            vault.removeItem = jasmine.createSpy('removeItem').and.callFake(() => {
+                return Promise.reject(new Error('Remove failed'));
+            });
 
             // Should still return null even if cleanup fails
             const result = await vault.getItem('key');
@@ -339,7 +343,7 @@ describe('Expiration Middleware', () => {
         });
 
         it('should handle concurrent access to expiring items', async () => {
-            await vault.setItem('key', 'value', { ttl: 50 });
+            await vault.setItem('key', 'value2', { ttl: 50 });
 
             // Start multiple concurrent gets
             const promises = Array(5).fill().map(() => vault.getItem('key'));
