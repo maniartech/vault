@@ -45,6 +45,11 @@
       "require": "./vault.js",
       "types": "./vault.d.ts"
     },
+    "./encrypted-vault": {
+      "import": "./encrypted-vault.js",
+      "require": "./encrypted-vault.js",
+      "types": "./encrypted-vault.d.ts"
+    },
     "./secured-vault": {
       "import": "./secured-vault.js",
       "require": "./secured-vault.js",
@@ -66,6 +71,8 @@
     "./backup.d.ts",
     "./index.js",
     "./index.d.ts",
+  "./encrypted-vault.js",
+  "./encrypted-vault.d.ts",
     "./secured-vault.js",
     "./secured-vault.d.ts",
     "./vault.js",

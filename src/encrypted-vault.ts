@@ -4,6 +4,7 @@
  */
 
 import Vault from './vault.js';
+import proxyHandler from './proxy-handler.js';
 import { encryptionMiddleware, EncryptionOptions } from './middlewares/encryption.js';
 import { EncryptionConfig } from './types/crypto.js';
 
@@ -17,11 +18,11 @@ export interface EncryptedVaultOptions extends EncryptionOptions {
 
 /**
  * EncryptedVault - A Vault preconfigured with encryption middleware
- * 
+ *
  * This class extends the base Vault functionality by automatically applying
  * encryption middleware to all operations, providing transparent encryption
  * and decryption of stored data.
- * 
+ *
  * @example
  * ```typescript
  * // Create an encrypted vault with password-based encryption
@@ -29,10 +30,10 @@ export interface EncryptedVaultOptions extends EncryptionOptions {
  *   password: 'my-secret-password',
  *   salt: 'my-unique-salt'
  * });
- * 
+ *
  * // Store data (automatically encrypted)
  * await vault.setItem('user', { name: 'John', email: 'john@example.com' });
- * 
+ *
  * // Retrieve data (automatically decrypted)
  * const user = await vault.getItem('user');
  * console.log(user.name); // 'John'
@@ -41,7 +42,7 @@ export interface EncryptedVaultOptions extends EncryptionOptions {
 export default class EncryptedVault extends Vault {
   /**
    * Creates a new EncryptedVault instance
-   * 
+   *
    * @param config - Encryption configuration (credentials or provider function)
    * @param options - Additional configuration options
    */
@@ -50,18 +51,14 @@ export default class EncryptedVault extends Vault {
     options: EncryptedVaultOptions = {}
   ) {
     const { storageName, ...encryptionOptions } = options;
-    
+
     // Initialize the base Vault
     super(storageName || 'encrypted-vault-storage', true);
-    
+
     // Apply encryption middleware
     this.use(encryptionMiddleware(config, encryptionOptions));
-    
-    // Return the proxied instance
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        return Reflect.get(target, prop, receiver);
-      }
-    });
+
+  // Return the proxied instance using the shared proxy handler
+  return new Proxy(this, proxyHandler);
   }
 }
