@@ -2,8 +2,8 @@
  * Tests for validation middleware
  */
 
-import Vault from '../vault.js';
-import { validationMiddleware, ValidationError } from '../middlewares/validation.js';
+import Vault from '../dist/vault.js';
+import { validationMiddleware, ValidationError } from '../dist/middlewares/validation.js';
 
 describe('Validation Middleware', () => {
   let vault;
@@ -84,7 +84,7 @@ describe('Validation Middleware', () => {
 
       await expectAsync(customVault.setItem('allowed', 'value')).toBeResolved();
       await expectAsync(customVault.setItem('forbidden', 'value')).toBeRejectedWithError(ValidationError, 'Key "forbidden" is not allowed');
-      
+
       await customVault.clear();
     });
 
@@ -107,7 +107,7 @@ describe('Validation Middleware', () => {
       await expectAsync(customVault.setItem('user_key', 'safe_value')).toBeResolved();
       await expectAsync(customVault.setItem('admin_key', 'value')).toBeRejectedWithError(ValidationError, 'Admin keys are not allowed');
       await expectAsync(customVault.setItem('user_key', 'my_password')).toBeRejectedWithError(ValidationError, 'Values containing "password" are not allowed');
-      
+
       await customVault.clear();
     });
 
@@ -124,7 +124,7 @@ describe('Validation Middleware', () => {
 
       // Basic validation should fail first, so custom validator never runs
       await expectAsync(customVault.setItem('', 'value')).toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
-      
+
       await customVault.clear();
     });
 
@@ -144,7 +144,7 @@ describe('Validation Middleware', () => {
       await expectAsync(customVault.setItem('key', { type: 'user', name: 'John' })).toBeResolved();
       await expectAsync(customVault.setItem('key', { name: 'John' })).toBeRejectedWithError(ValidationError, 'type missing!');
       await expectAsync(customVault.setItem('key', 'string-value')).toBeRejectedWithError(ValidationError, 'type missing!');
-      
+
       await customVault.clear();
     });
   });

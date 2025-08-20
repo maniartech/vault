@@ -11,7 +11,7 @@
     // Emit
     "declaration": true,
     "emitDeclarationOnly": true,
-    "outDir": "./",
+    "outDir": "./dist",
     "removeComments": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

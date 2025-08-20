@@ -1,5 +1,5 @@
 // Import test for default singleton using karma/jasmine
-import vault from '../index.mini.js';
+import vault from '../dist/index.mini.js';
 
 describe('Import Tests - Default Singleton', () => {
   beforeEach(async () => {

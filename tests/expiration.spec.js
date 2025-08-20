@@ -2,8 +2,8 @@
  * Comprehensive tests for expiration middleware
  */
 
-import Vault from '../vault.js';
-import { expirationMiddleware } from '../middlewares/expiration.js';
+import Vault from '../dist/vault.js';
+import { expirationMiddleware } from '../dist/middlewares/expiration.js';
 
 describe('Expiration Middleware', () => {
     let vault;

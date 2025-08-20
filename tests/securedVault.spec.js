@@ -1,4 +1,4 @@
-import EncryptedVault from "../encrypted-vault.js"
+import EncryptedVault from "../dist/encrypted-vault.js"
 
 describe("EncryptedVault (Legacy SecuredVault Tests)", () => {
   it("contains an EncryptedVault specs using basic encConfig", async () => {

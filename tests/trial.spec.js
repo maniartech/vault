@@ -1,4 +1,4 @@
-import vault from "../index.js";
+import vault from "../dist/index.js";
 
 describe("A suite", () => {
   beforeEach(async () => {

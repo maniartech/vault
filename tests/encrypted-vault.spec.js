@@ -1,7 +1,7 @@
 /**
  * Test suite for EncryptedVault
  */
-import { EncryptedVault } from '../index.js';
+import { EncryptedVault } from '../dist/index.js';
 
 describe('EncryptedVault', () => {
   let vault;
@@ -39,7 +39,7 @@ describe('EncryptedVault', () => {
     it('should handle null and undefined values', async () => {
       await vault.setItem('null-key', null);
       await vault.setItem('undefined-key', undefined);
-      
+
       expect(await vault.getItem('null-key')).toBeNull();
       expect(await vault.getItem('undefined-key')).toBeUndefined();
     });
@@ -74,12 +74,12 @@ describe('EncryptedVault', () => {
     it('should work with metadata', async () => {
       const testValue = 'Value with metadata';
       const testMeta = { created: Date.now(), type: 'test' };
-      
+
       await vault.setItem('meta-test', testValue, testMeta);
-      
+
       const retrieved = await vault.getItem('meta-test');
       const retrievedMeta = await vault.getItemMeta('meta-test');
-      
+
       expect(retrieved).toBe(testValue);
       expect(retrievedMeta).toEqual(testMeta);
     });
@@ -98,23 +98,23 @@ describe('EncryptedVault', () => {
       const testValue = 'Function config test';
       await functionVault.setItem('func-test', testValue);
       const retrieved = await functionVault.getItem('func-test');
-      
+
       expect(retrieved).toBe(testValue);
-      
+
       await functionVault.clear();
     });
 
     it('should accept custom storage name', async () => {
-      const customVault = new EncryptedVault(testConfig, { 
-        storageName: 'custom-encrypted-storage' 
+      const customVault = new EncryptedVault(testConfig, {
+        storageName: 'custom-encrypted-storage'
       });
       await customVault.clear();
 
       await customVault.setItem('custom-test', 'custom value');
       const retrieved = await customVault.getItem('custom-test');
-      
+
       expect(retrieved).toBe('custom value');
-      
+
       await customVault.clear();
     });
 
@@ -127,9 +127,9 @@ describe('EncryptedVault', () => {
 
       await optionsVault.setItem('options-test', 'options value');
       const retrieved = await optionsVault.getItem('options-test');
-      
+
       expect(retrieved).toBe('options value');
-      
+
       await optionsVault.clear();
     });
   });

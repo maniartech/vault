@@ -1,6 +1,6 @@
 // Import test for middlewares using karma/jasmine
-import { validationMiddleware, expirationMiddleware, encryptionMiddleware } from '../middlewares/index.js';
-import encryptionMiddlewareDefault from '../middlewares/encryption.js';
+import { validationMiddleware, expirationMiddleware, encryptionMiddleware } from '../dist/middlewares/index.js';
+import encryptionMiddlewareDefault from '../dist/middlewares/encryption.js';
 
 describe('Import Tests - Middlewares', () => {
   it('should import all middlewares from index', () => {

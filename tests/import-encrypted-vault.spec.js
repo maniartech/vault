@@ -1,5 +1,5 @@
 // Import test for EncryptedVault using karma/jasmine
-import EncryptedVault from '../encrypted-vault.js';
+import EncryptedVault from '../dist/encrypted-vault.js';
 
 describe('Import Tests - EncryptedVault', () => {
   let encryptedVault;

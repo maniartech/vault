@@ -1,5 +1,5 @@
 // Import test for Vault class using karma/jasmine
-import Vault from '../vault.js';
+import Vault from '../dist/vault.js';
 
 describe('Import Tests - Vault Class', () => {
   let customVault;

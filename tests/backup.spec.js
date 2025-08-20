@@ -1,5 +1,5 @@
-import { importData, exportData } from "../backup.js"
-import Vault from '../vault.js';
+import { importData, exportData } from "../dist/backup.js"
+import Vault from '../dist/vault.js';
 
 describe('import-export', () => {
     it('exportData', async () => {

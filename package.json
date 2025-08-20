@@ -33,68 +33,57 @@
     "javascript-storage",
     "persistent-storage"
   ],
-  "main": "./index.js",
-  "types": "types/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
-  "import": "./index.mini.js",
-  "require": "./index.mini.js",
-  "types": "./index.mini.d.ts"
+  "import": "./dist/index.mini.js",
+  "require": "./dist/index.mini.js",
+  "types": "./dist/index.mini.d.ts"
     },
     "./backup": {
-      "import": "./backup.js",
-      "require": "./backup.js",
-      "types": "./backup.d.ts"
+      "import": "./dist/backup.js",
+      "require": "./dist/backup.js",
+      "types": "./dist/backup.d.ts"
     },
     "./middlewares": {
-      "import": "./middlewares/index.js",
-      "require": "./middlewares/index.js",
-      "types": "./middlewares/index.d.ts"
+      "import": "./dist/middlewares/index.js",
+      "require": "./dist/middlewares/index.js",
+      "types": "./dist/middlewares/index.d.ts"
     },
     "./middlewares/validation": {
-      "import": "./middlewares/validation.js",
-      "require": "./middlewares/validation.js",
-      "types": "./middlewares/validation.d.ts"
+      "import": "./dist/middlewares/validation.js",
+      "require": "./dist/middlewares/validation.js",
+      "types": "./dist/middlewares/validation.d.ts"
     },
     "./middlewares/expiration": {
-      "import": "./middlewares/expiration.js",
-      "require": "./middlewares/expiration.js",
-      "types": "./middlewares/expiration.d.ts"
+      "import": "./dist/middlewares/expiration.js",
+      "require": "./dist/middlewares/expiration.js",
+      "types": "./dist/middlewares/expiration.d.ts"
     },
     "./middlewares/encryption": {
-      "import": "./middlewares/encryption.js",
-      "require": "./middlewares/encryption.js",
-      "types": "./middlewares/encryption.d.ts"
+      "import": "./dist/middlewares/encryption.js",
+      "require": "./dist/middlewares/encryption.js",
+      "types": "./dist/middlewares/encryption.d.ts"
     },
     "./vault": {
-      "import": "./vault.js",
-      "require": "./vault.js",
-      "types": "./vault.d.ts"
+      "import": "./dist/vault.js",
+      "require": "./dist/vault.js",
+      "types": "./dist/vault.d.ts"
     },
   "./encrypted-vault": {
-      "import": "./encrypted-vault.js",
-      "require": "./encrypted-vault.js",
-      "types": "./encrypted-vault.d.ts"
+      "import": "./dist/encrypted-vault.js",
+      "require": "./dist/encrypted-vault.js",
+      "types": "./dist/encrypted-vault.d.ts"
     },
     "./types": {
-      "import": "./types/index.js",
-      "require": "./types/index.js",
-      "types": "./types/index.d.ts"
+      "import": "./dist/types/index.js",
+      "require": "./dist/types/index.js",
+      "types": "./dist/types/index.d.ts"
     }
   },
   "files": [
-    "./backup.js",
-    "./backup.d.ts",
-    "./index.js",
-    "./index.d.ts",
-  "./index.mini.js",
-  "./index.mini.d.ts",
-  "./middlewares/",
-  "./encrypted-vault.js",
-  "./encrypted-vault.d.ts",
-    "./vault.js",
-    "./vault.d.ts",
-    "./types/"
+    "./dist/"
   ],
   "sideEffects": false,
   "scripts": {

@@ -76,10 +76,8 @@ const allEntryPoints = getEntryPointsRecursive('src');
 
 // Ensure directories exist for output files
 allEntryPoints.forEach(entry => {
-  const outputDir = path.dirname(entry.output);
-  if (outputDir !== '.') {
-    ensureDir(outputDir);
-  }
+  const outputDir = path.dirname(path.join('dist', entry.output));
+  ensureDir(outputDir);
 });
 
 // Prepare build options for each TypeScript file
@@ -95,7 +93,7 @@ const buildOptions = allEntryPoints.map(entry => {
     minify: !debug,
     format: 'esm',
     sourcemap: debug,
-    outfile: `./${entry.output}`,
+    outfile: `./dist/${entry.output}`,
     platform: 'browser',
     target: 'es2019',
     legalComments: 'none',
@@ -121,10 +119,8 @@ if (isWatch) {
     // Regenerate entry points in case new files were added
     const updatedEntryPoints = getEntryPointsRecursive('src');
     updatedEntryPoints.forEach(entry => {
-      const outputDir = path.dirname(entry.output);
-      if (outputDir !== '.') {
-        ensureDir(outputDir);
-      }
+      const outputDir = path.dirname(path.join('dist', entry.output));
+      ensureDir(outputDir);
     });
 
     const updatedBuildOptions = updatedEntryPoints.map(entry => {
@@ -138,7 +134,7 @@ if (isWatch) {
         minify: !debug,
         format: 'esm',
         sourcemap: debug,
-        outfile: `./${entry.output}`,
+        outfile: `./dist/${entry.output}`,
         platform: 'browser',
         target: 'es2019',
         legalComments: 'none',
