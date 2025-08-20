@@ -25,7 +25,6 @@ export { VaultErrorCode } from './types/index.js';
 
 // Export classes for direct instantiation
 export { default as Vault } from './vault.js';
-export { default as SecuredVault } from './secured-vault.js';
 export { default as EncryptedVault } from './encrypted-vault.js';
 
 // Export utility functions
