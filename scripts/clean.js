@@ -3,23 +3,24 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.join(__dirname, '..');
 
 async function cleanUp() {
   try {
     // Directories to remove
     await Promise.all([
-      fs.rm(path.join(__dirname, 'dist'), { recursive: true, force: true }),
-      fs.rm(path.join(__dirname, 'types'), { recursive: true, force: true }),
-      fs.rm(path.join(__dirname, '.temp'), { recursive: true, force: true }),
-      fs.rm(path.join(__dirname, 'coverage'), { recursive: true, force: true })
+      fs.rm(path.join(rootDir, 'dist'), { recursive: true, force: true }),
+      fs.rm(path.join(rootDir, 'types'), { recursive: true, force: true }),
+      fs.rm(path.join(rootDir, '.temp'), { recursive: true, force: true }),
+      fs.rm(path.join(rootDir, 'coverage'), { recursive: true, force: true })
     ]);
     console.log('Removed dist, types, .temp, and coverage directories.');
 
     // Remove all generated build files in root
-    const files = await fs.readdir(__dirname);
-    
+    const files = await fs.readdir(rootDir);
+
     // Define patterns for files to remove in root
-    const rootFilesToRemove = files.filter(file => 
+    const rootFilesToRemove = files.filter(file =>
       file.endsWith('.js') && !['build.js', 'clean.js', 'debug-encryption.js'].includes(file) ||
       file.endsWith('.d.ts') ||
       file.endsWith('.js.map') ||
@@ -28,15 +29,15 @@ async function cleanUp() {
     );
 
     if (rootFilesToRemove.length > 0) {
-      await Promise.all(rootFilesToRemove.map(file => fs.unlink(path.join(__dirname, file))));
+      await Promise.all(rootFilesToRemove.map(file => fs.unlink(path.join(rootDir, file))));
       console.log(`Removed ${rootFilesToRemove.length} generated file(s) from root: ${rootFilesToRemove.join(', ')}`);
     }
 
     // Clean generated files in middlewares directory
-    const middlewaresDir = path.join(__dirname, 'middlewares');
+    const middlewaresDir = path.join(rootDir, 'middlewares');
     try {
       const middlewareFiles = await fs.readdir(middlewaresDir);
-      const middlewareFilesToRemove = middlewareFiles.filter(file => 
+      const middlewareFilesToRemove = middlewareFiles.filter(file =>
         file.endsWith('.js') ||
         file.endsWith('.d.ts') ||
         file.endsWith('.js.map') ||

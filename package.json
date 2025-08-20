@@ -89,15 +89,15 @@
   "scripts": {
     "test": "karma start karma.conf.cjs --single-run",
     "test:browser": "karma start karma.conf.cjs",
-    "clean": "node clean.js",
+    "clean": "node ./scripts/clean.js",
     "build:types": "tsc",
-    "build:vault": "node ./build.js && npm run build:types",
+    "build:vault": "node ./scripts/build.js && npm run build:types",
   "build": "npm run clean && npm run build:vault && npm run build:types",
   "size": "node ./scripts/gzip-and-measure.js",
   "size:check": "node ./scripts/gzip-and-measure.js --check",
   "size:bundle": "node ./scripts/gzip-and-measure.js --bundle",
   "size:bundle:check": "node ./scripts/gzip-and-measure.js --bundle --check",
-    "watch": "node ./build.js --watch --debug",
+    "watch": "node ./scripts/build.js --watch --debug",
     "prepack": "npm run build"
   },
   "devDependencies": {

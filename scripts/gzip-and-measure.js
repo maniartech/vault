@@ -154,7 +154,7 @@ function pretty(bytes) {
   }
 
   // Bundle-based gzip measurement (includes imports)
-  const defaultEntries = ['index.js', 'vault.js', 'encrypted-vault.js'];
+  const defaultEntries = ['dist/index.js', 'dist/vault.js', 'dist/encrypted-vault.js'];
   const candidates = entriesArg ? entriesArg.split(',') : defaultEntries;
   const entryFiles = [];
   for (const rel of candidates) {
