@@ -15,7 +15,7 @@ export default class Vault {
   /** IndexedDB database handle (initialized lazily) */
   protected db: IDBDatabase | null = null;
   /** Registered middlewares for the pipeline */
-  protected middlewares: Middleware[] = [];
+  public middlewares: Middleware[] = [];
   [key: string]: any;
 
   /**
