@@ -149,4 +149,6 @@ out
 
 # Disable temporary specs files
 */specs/**
-.gz
+
+# Ignore all .js.gz files
+*.js.gz
