@@ -149,3 +149,4 @@ out
 
 # Disable temporary specs files
 */specs/**
+.gz
