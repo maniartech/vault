@@ -1,10 +1,12 @@
 // Importing required modules
-const esbuild   = require('esbuild'); // For bundling and minifying JavaScript
-const fs        = require('fs'); // For file system operations
-const path      = require('path'); // For handling and transforming file paths
-const { exec }  = require('child_process'); // For running shell commands
-const { platform } = require('os');
-const { log } = require('console');
+import esbuild from 'esbuild'; // For bundling and minifying JavaScript
+import fs from 'fs'; // For file system operations
+import path from 'path'; // For handling and transforming file paths
+import { exec } from 'child_process'; // For running shell commands
+import { platform } from 'os';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const debug = process.argv.includes("--debug") || false;
 
@@ -46,23 +48,58 @@ function getEntryPoints(dir) {
     .map(file => path.join(dir, file));
 }
 
-// Get all TypeScript files in the 'src' directory
-const entryPoints = getEntryPoints('src');
+// Function to get all TypeScript files in a directory recursively
+function getEntryPointsRecursive(dir, baseDir = '') {
+  const entryPoints = [];
+  const files = fs.readdirSync(dir);
+
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+    const stat = fs.statSync(fullPath);
+
+    if (stat.isDirectory()) {
+      // Recursively get entry points from subdirectories
+      entryPoints.push(...getEntryPointsRecursive(fullPath, path.join(baseDir, file)));
+    } else if (file.endsWith('.ts')) {
+      entryPoints.push({
+        source: fullPath,
+        output: path.join(baseDir, file.replace('.ts', '.js'))
+      });
+    }
+  }
+
+  return entryPoints;
+}
+
+// Get all TypeScript files in the 'src' directory recursively
+const allEntryPoints = getEntryPointsRecursive('src');
+
+// Ensure directories exist for output files
+allEntryPoints.forEach(entry => {
+  const outputDir = path.dirname(entry.output);
+  if (outputDir !== '.') {
+    ensureDir(outputDir);
+  }
+});
 
 // Prepare build options for each TypeScript file
-const buildOptions = entryPoints.map(entryPoint => {
+const buildOptions = allEntryPoints.map(entry => {
   // Get the file name without extension
-  const fileName = path.basename(entryPoint, path.extname(entryPoint));
-  // Return the build options
+  const fileName = path.basename(entry.source, path.extname(entry.source));
+  const isIndex = fileName === 'index' && entry.output === 'index.js';
+  const isMini = fileName === 'index.mini' && entry.output === 'index.mini.js';
+
   return {
-    entryPoints: [entryPoint],
-    bundle: true,
+    entryPoints: [entry.source],
+    bundle: isIndex || isMini, // bundle minimal index as well
     minify: !debug,
     format: 'esm',
     sourcemap: debug,
-    outfile: `./${fileName}.js`,
+    outfile: `./${entry.output}`,
     platform: 'browser',
-    target: 'es2017'
+    target: 'es2019',
+    legalComments: 'none',
+    drop: debug ? [] : ['console', 'debugger']
   };
 });
 
@@ -81,7 +118,35 @@ Promise.all(buildOptions.map(options => esbuild.build(options)))
 if (isWatch) {
   fs.watch('src', { recursive: true }, (eventType, filename) => {
     console.log(`File ${filename} was changed, rebuilding...`);
-    Promise.all(buildOptions.map(options => esbuild.build(options)))
+    // Regenerate entry points in case new files were added
+    const updatedEntryPoints = getEntryPointsRecursive('src');
+    updatedEntryPoints.forEach(entry => {
+      const outputDir = path.dirname(entry.output);
+      if (outputDir !== '.') {
+        ensureDir(outputDir);
+      }
+    });
+
+    const updatedBuildOptions = updatedEntryPoints.map(entry => {
+      const fileName = path.basename(entry.source, path.extname(entry.source));
+      const isIndex = fileName === 'index' && entry.output === 'index.js';
+      const isMini = fileName === 'index.mini' && entry.output === 'index.mini.js';
+
+      return {
+        entryPoints: [entry.source],
+        bundle: isIndex || isMini,
+        minify: !debug,
+        format: 'esm',
+        sourcemap: debug,
+        outfile: `./${entry.output}`,
+        platform: 'browser',
+        target: 'es2019',
+        legalComments: 'none',
+        drop: debug ? [] : ['console', 'debugger']
+      };
+    });
+
+    Promise.all(updatedBuildOptions.map(options => esbuild.build(options)))
       .then(runTSC)
       .catch(() => process.exit(1));
   });
