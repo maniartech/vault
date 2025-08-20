@@ -32,7 +32,7 @@ export class EncryptionError extends Error {
  * @param options - Additional configuration options for encryption
  * @returns Middleware instance that handles encryption/decryption
  */
-export function encryptionMiddleware(
+function encryptionMiddleware(
   config: EncryptionConfig,
   options: EncryptionOptions = {}
 ): Middleware {
@@ -258,3 +258,8 @@ async function decrypt(key: CryptoKey, encryptedData: ArrayBuffer): Promise<stri
     );
   }
 }
+
+export default encryptionMiddleware;
+
+// Also export as named export for backward compatibility
+export { encryptionMiddleware };

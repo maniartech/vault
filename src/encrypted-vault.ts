@@ -5,7 +5,7 @@
 
 import Vault from './vault.js';
 import proxyHandler from './proxy-handler.js';
-import { encryptionMiddleware, EncryptionOptions } from './middlewares/encryption.js';
+import encryptionMiddleware, { EncryptionOptions } from './middlewares/encryption.js';
 import { EncryptionConfig } from './types/crypto.js';
 
 /**

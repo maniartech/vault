@@ -39,7 +39,7 @@ function parseDuration(duration: string | number): number {
  * Creates expiration middleware with optional default TTL
  * @param defaultTTL - Default TTL as string ("1d", "1h") or milliseconds
  */
-export function expirationMiddleware(defaultTTL?: string | number): Middleware {
+function expirationMiddleware(defaultTTL?: string | number): Middleware {
     const options: ExpirationOptions = {};
 
     if (defaultTTL !== undefined) {
@@ -130,3 +130,8 @@ if (typeof window !== 'undefined' && typeof (window as any).addEventListener ===
         (window as any).onunhandledrejection = handler as any;
     }
 }
+
+export default expirationMiddleware;
+
+// Also export as named export for backward compatibility
+export { expirationMiddleware };

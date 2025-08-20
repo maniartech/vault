@@ -2,19 +2,15 @@
  * Middleware exports for Vault Storage
  */
 
-export { 
-  validationMiddleware,
-  ValidationError,
-  type CustomValidator
-} from './validation.js';
+// Import default exports from individual middleware files
+import validationMiddleware from './validation.js';
+import expirationMiddleware from './expiration.js';
+import encryptionMiddleware from './encryption.js';
 
-export {
-  expirationMiddleware,
-  type ExpirationOptions
-} from './expiration.js';
+// Re-export for named imports (backwards compatibility)
+export { validationMiddleware, expirationMiddleware, encryptionMiddleware };
 
-export {
-  encryptionMiddleware,
-  EncryptionError,
-  type EncryptionOptions
-} from './encryption.js';
+// Re-export error classes and types
+export { ValidationError, type CustomValidator } from './validation.js';
+export { type ExpirationOptions } from './expiration.js';
+export { EncryptionError, type EncryptionOptions } from './encryption.js';

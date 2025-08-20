@@ -22,17 +22,17 @@ export type CustomValidator = (context: MiddlewareContext) => void | Promise<voi
 /**
  * Creates validation middleware with custom validators
  */
-export function validationMiddleware(...validators: CustomValidator[]): Middleware {
+function validationMiddleware(...validators: CustomValidator[]): Middleware {
   return {
     name: 'validation',
-    
+
     async before(context: MiddlewareContext): Promise<MiddlewareContext> {
       // Basic validation first
-      if (context.operation === 'get' || 
-          context.operation === 'set' || 
-          context.operation === 'remove' || 
+      if (context.operation === 'get' ||
+          context.operation === 'set' ||
+          context.operation === 'remove' ||
           context.operation === 'getItemMeta') {
-        
+
         if (!context.key || typeof context.key !== 'string') {
           throw new ValidationError('Key must be a non-empty string');
         }
@@ -49,8 +49,13 @@ export function validationMiddleware(...validators: CustomValidator[]): Middlewa
       for (const validator of validators) {
         await validator(context);
       }
-      
+
       return context;
     }
   };
 }
+
+export default validationMiddleware;
+
+// Also export as named export for backward compatibility
+export { validationMiddleware };
