@@ -46,7 +46,7 @@ export default class EncryptedVault extends Vault {
    * @param config - Encryption configuration (credentials or provider function)
    * @param options - Additional configuration options
    */
-  constructor(
+  public constructor(
     config: EncryptionConfig,
     options: EncryptedVaultOptions = {}
   ) {
@@ -58,7 +58,7 @@ export default class EncryptedVault extends Vault {
     // Apply encryption middleware
     this.use(encryptionMiddleware(config, encryptionOptions));
 
-  // Return the proxied instance using the shared proxy handler
-  return new Proxy(this, proxyHandler);
+    // Return the proxied instance using the shared proxy handler
+    return new Proxy(this, proxyHandler);
   }
 }
