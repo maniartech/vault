@@ -40,6 +40,26 @@
       "require": "./index.js",
       "types": "./index.d.ts"
     },
+    "./middlewares": {
+      "import": "./middlewares/index.js",
+      "require": "./middlewares/index.js",
+      "types": "./middlewares/index.d.ts"
+    },
+    "./middlewares/validation": {
+      "import": "./middlewares/validation.js",
+      "require": "./middlewares/validation.js",
+      "types": "./middlewares/validation.d.ts"
+    },
+    "./middlewares/expiration": {
+      "import": "./middlewares/expiration.js",
+      "require": "./middlewares/expiration.js",
+      "types": "./middlewares/expiration.d.ts"
+    },
+    "./middlewares/encryption": {
+      "import": "./middlewares/encryption.js",
+      "require": "./middlewares/encryption.js",
+      "types": "./middlewares/encryption.d.ts"
+    },
     "./vault": {
       "import": "./vault.js",
       "require": "./vault.js",
@@ -49,11 +69,6 @@
       "import": "./encrypted-vault.js",
       "require": "./encrypted-vault.js",
       "types": "./encrypted-vault.d.ts"
-    },
-    "./secured-vault": {
-      "import": "./secured-vault.js",
-      "require": "./secured-vault.js",
-      "types": "./secured-vault.d.ts"
     },
     "./backup": {
       "import": "./backup.js",
@@ -71,10 +86,9 @@
     "./backup.d.ts",
     "./index.js",
     "./index.d.ts",
+  "./middlewares/",
   "./encrypted-vault.js",
   "./encrypted-vault.d.ts",
-    "./secured-vault.js",
-    "./secured-vault.d.ts",
     "./vault.js",
     "./vault.d.ts",
     "./types/"
