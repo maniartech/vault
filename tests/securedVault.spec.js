@@ -1,10 +1,12 @@
-import SecuredVault from "../secured-vault.js"
+import EncryptedVault from "../encrypted-vault.js"
 
-describe("SecuredVault", () => {
-  it("contains a SecuredVault specs using basic encConfig", async () => {
-    const vault = new SecuredVault("secured-store-basic", {
+describe("EncryptedVault (Legacy SecuredVault Tests)", () => {
+  it("contains an EncryptedVault specs using basic encConfig", async () => {
+    const vault = new EncryptedVault({
         "password": "password",
         "salt": "salt"
+      }, {
+        "storageName": "secured-store-basic"
       });
 
     await vault.setItem("firstName", "John");
@@ -31,12 +33,14 @@ describe("SecuredVault", () => {
     expect(await vault.keys()).toEqual([]);
   });
 
-  it("contains a SecuredVault specs using function based encConfig", async () => {
-    const vault = new SecuredVault("secured-store-function", () => {
+  it("contains an EncryptedVault specs using function based encConfig", async () => {
+    const vault = new EncryptedVault(() => {
       return {
         "password": "password",
         "salt": "salt"
       }
+    }, {
+      "storageName": "secured-store-function"
     });
 
     await vault.setItem("firstName", "John");
@@ -63,8 +67,8 @@ describe("SecuredVault", () => {
     expect(await vault.keys()).toEqual([]);
   });
 
-  it("contains a SecuredVault specs using proxy based encConfig", async () => {
-    const vault = new SecuredVault("secured-store-promise", () => {
+  it("contains an EncryptedVault specs using proxy based encConfig", async () => {
+    const vault = new EncryptedVault(() => {
       return new Promise((resolve) => {
         setTimeout(() => {
           resolve({
@@ -73,6 +77,8 @@ describe("SecuredVault", () => {
           });
         }, 100);
       });
+    }, {
+      "storageName": "secured-store-promise"
     });
 
     await vault.setItem("firstName", "John");
