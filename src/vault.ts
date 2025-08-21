@@ -1,4 +1,6 @@
 import proxy from "./proxy-handler.js";
+// Create a frozen, non-modifiable copy of the proxy handler for safe external use
+const __frozenProxyHandler = Object.freeze({ ...proxy });
 import { VaultItemMeta } from './types/vault.js';
 import { Middleware, MiddlewareContext } from './types/middleware.js';
 
@@ -284,21 +286,24 @@ export default class Vault {
       };
     });
   }
+
+  /**
+   * Return a non-modifiable copy of the internal Proxy handler used for instances.
+   * This enables advanced scenarios (e.g., subclass proxies) without exposing
+   * a mutable handler object. The returned handler is frozen and safe to share.
+   */
+  public static getProxy() {
+    return __frozenProxyHandler;
+  }
 }
 
 // Expose a read-only, non-configurable static accessor for the proxy handler.
 // This allows advanced subclassing without making the handler mutable or part of
 // the public surface in a way that can be overwritten at runtime.
 Object.defineProperty(Vault, 'proxy', {
-  get: () => proxy,
+  get: () => Vault.getProxy(),
   configurable: false,
   enumerable: false
 });
 
-// Backward-compatibility: expose previous name `proxyHandler` as a read-only alias.
-// This allows existing consumers expecting Vault.proxyHandler to continue working.
-Object.defineProperty(Vault, 'proxyHandler', {
-  get: () => proxy,
-  configurable: false,
-  enumerable: false
-});
+// Note: v2 removes the legacy `proxyHandler` alias; use `Vault.proxy` or `Vault.getProxy()`.
