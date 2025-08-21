@@ -4,7 +4,7 @@
  */
 
 import Vault from './vault.js';
-import proxyHandler from './proxy-handler.js';
+import proxy from './proxy-handler.js';
 import encryptionMiddleware, { EncryptionOptions } from './middlewares/encryption.js';
 import { EncryptionConfig } from './types/crypto.js';
 
@@ -59,6 +59,6 @@ export default class EncryptedVault extends Vault {
     this.use(encryptionMiddleware(config, encryptionOptions));
 
     // Return the proxied instance using the shared proxy handler
-    return new Proxy(this, proxyHandler);
+    return new Proxy(this, proxy);
   }
 }

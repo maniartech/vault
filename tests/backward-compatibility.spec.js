@@ -164,7 +164,7 @@ describe('Backward Compatibility', () => {
     });
 
     // TODO: Fix inheritance and proxy creation errors
-    xit('should support inheritance and extension patterns', async () => {
+  it('should support inheritance and extension patterns', async () => {
       class ExtendedVault extends Vault {
         constructor(storageName) {
           super(storageName, true); // Pass isParent flag
@@ -173,7 +173,7 @@ describe('Backward Compatibility', () => {
           this.customMethod = () => 'custom-functionality';
 
           // Return proxy instance
-          return new Proxy(this, this.constructor.proxyHandler || Vault.prototype.constructor.proxyHandler);
+          return new Proxy(this, this.constructor.proxy || Vault.prototype.constructor.proxy);
         }
 
         async setItemWithTimestamp(key, value) {

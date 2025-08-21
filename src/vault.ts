@@ -1,4 +1,4 @@
-import proxyHandler from "./proxy-handler.js";
+import proxy from "./proxy-handler.js";
 import { VaultItemMeta } from './types/vault.js';
 import { Middleware, MiddlewareContext } from './types/middleware.js';
 
@@ -28,7 +28,7 @@ export default class Vault {
   public constructor(storageName?: string, isParent: boolean = false) {
     this.storageName = storageName || this.storageName;
     // Use instanceToProxy if provided, otherwise default to this
-    if (!isParent) return new Proxy(this, proxyHandler)
+    if (!isParent) return new Proxy(this, proxy)
   }
 
   /**
@@ -285,3 +285,20 @@ export default class Vault {
     });
   }
 }
+
+// Expose a read-only, non-configurable static accessor for the proxy handler.
+// This allows advanced subclassing without making the handler mutable or part of
+// the public surface in a way that can be overwritten at runtime.
+Object.defineProperty(Vault, 'proxy', {
+  get: () => proxy,
+  configurable: false,
+  enumerable: false
+});
+
+// Backward-compatibility: expose previous name `proxyHandler` as a read-only alias.
+// This allows existing consumers expecting Vault.proxyHandler to continue working.
+Object.defineProperty(Vault, 'proxyHandler', {
+  get: () => proxy,
+  configurable: false,
+  enumerable: false
+});
