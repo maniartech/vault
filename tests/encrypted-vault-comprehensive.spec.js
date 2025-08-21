@@ -246,12 +246,12 @@ describe('EncryptedVault', () => {
     });
 
     // TODO: Fix EncryptedVault property-style access returning null instead of values
-    xit('should support property-style access for setting values', async () => {
-      encryptedVault.username = 'john_doe';
-      encryptedVault.secret = { password: '123456', token: 'abc123' };
+    it('should support property-style access for setting values', async () => {
+        encryptedVault.username = 'john_doe';
+        encryptedVault.secret = { password: '123456', token: 'abc123' };
 
-      expect(await encryptedVault.getItem('username')).toBe('john_doe');
-      expect(await encryptedVault.getItem('secret')).toEqual({ password: '123456', token: 'abc123' });
+        expect(await encryptedVault.getItem('username')).toBe('john_doe');
+        expect(await encryptedVault.getItem('secret')).toEqual({ password: '123456', token: 'abc123' });
     });
 
     it('should support property-style access for getting values', async () => {
