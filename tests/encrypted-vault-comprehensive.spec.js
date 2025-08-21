@@ -245,7 +245,6 @@ describe('EncryptedVault', () => {
       encryptedVault = new EncryptedVault(testConfig);
     });
 
-    // TODO: Fix EncryptedVault property-style access returning null instead of values
     it('should support property-style access for setting values', async () => {
         encryptedVault.username = 'john_doe';
         encryptedVault.secret = { password: '123456', token: 'abc123' };

@@ -163,8 +163,7 @@ describe('Backward Compatibility', () => {
       await vault2.clear();
     });
 
-    // TODO: Fix inheritance and proxy creation errors
-  it('should support inheritance and extension patterns', async () => {
+    it('should support inheritance and extension patterns', async () => {
       class ExtendedVault extends Vault {
         constructor(storageName) {
           super(storageName, true); // Pass isParent flag
@@ -202,8 +201,7 @@ describe('Backward Compatibility', () => {
   });
 
   describe('EncryptedVault Migration Compatibility', () => {
-    // TODO: Fix EncryptedVault proxy functionality - property access not working
-    xit('should work as a drop-in replacement for SecuredVault patterns', async () => {
+    it('should work as a drop-in replacement for SecuredVault patterns', async () => {
       // Simulate old SecuredVault usage pattern
       const config = {
         password: 'my-secret-password',
@@ -228,8 +226,8 @@ describe('Backward Compatibility', () => {
       await secureVault.clear();
     });
 
-    // TODO: Fix encryption compatibility testing - encryption tests are being skipped
-    xit('should maintain encryption compatibility', async () => {
+
+    it('should maintain encryption compatibility', async () => {
       const config = { password: 'test', salt: 'test' };
 
       // Store data with EncryptedVault
