@@ -30,7 +30,38 @@ export default class Vault {
   public constructor(storageName?: string, isParent: boolean = false) {
     this.storageName = storageName || this.storageName;
     // Use instanceToProxy if provided, otherwise default to this
-    if (!isParent) return new Proxy(this, proxy)
+    if (!isParent) {
+  const p = new Proxy(this, proxy);
+  // Philosophy
+  // -----------
+  // We store a hidden back-reference to the proxy created for this instance.
+  // Why? So that chainable instance methods (e.g. use()) can return the exact
+  // same proxy object the caller already holds. This preserves identity
+  // (result === vault) in fluent chains and avoids exposing the raw target.
+  //
+  // Design choices:
+  // - Non-enumerable: won't appear in for..in/Object.keys/JSON, keeping the
+  //   surface clean and preventing accidental leaks.
+  // - Non-configurable & non-writable: prevents tampering or deletion.
+  // - We return the proxy `p` from the constructor so external code always
+  //   talks to the proxy, not the underlying instance.
+  // - Casting (this as any) is used only to attach this internal field
+  //   without polluting the public type surface. Alternatives could be a
+  //   WeakMap or a Symbol key, but defineProperty here keeps it simple and
+  //   predictable.
+  //
+  // Maintainers:
+  // If you add new chainable methods that should preserve identity equality
+  // with the proxy (e.g. return `this` for chaining), prefer returning
+  // `(this as any).__selfProxy ?? this` to ensure callers keep the same proxy.
+  Object.defineProperty(this as any, '__selfProxy', {
+        value: p,
+        enumerable: false,
+        configurable: false,
+        writable: false
+      });
+      return p;
+    }
   }
 
   /**
@@ -225,7 +256,9 @@ export default class Vault {
    */
   public use(middleware: Middleware): this {
     this.middlewares.push(middleware);
-    return this;
+  // If this instance is proxied, return the proxy to preserve identity in chaining
+  const sp = (this as any).__selfProxy;
+  return (sp ?? this) as this;
   }
 
   /**
