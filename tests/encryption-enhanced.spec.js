@@ -471,52 +471,85 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
   });
 
   describe('Error Handling and Recovery', () => {
-    // TODO: Fix encryption failure handling - error propagation
-    xit('should handle encryption failures gracefully', async () => {
-      // Mock crypto functions to fail
-      const originalSubtle = window.crypto?.subtle;
-      if (originalSubtle) {
-        window.crypto.subtle = {
-          ...originalSubtle,
-          encrypt: jasmine.createSpy('encrypt').and.callFake(() => {
-            return Promise.reject(new Error('Encryption failed'));
-          })
-        };
-      }
+    it('should handle encryption failures gracefully', async () => {
+      // Store original crypto for restoration
+      const originalCrypto = window.crypto;
 
-      vault.use(encryptionMiddleware(testConfig));
+      // Create a mock crypto object with failing encrypt
+      const mockSubtle = {
+        ...originalCrypto.subtle,
+        encrypt: jasmine.createSpy('encrypt').and.callFake(() => {
+          return Promise.reject(new Error('Encryption failed'));
+        }),
+        importKey: originalCrypto.subtle.importKey.bind(originalCrypto.subtle),
+        deriveKey: originalCrypto.subtle.deriveKey.bind(originalCrypto.subtle)
+      };
 
-      await expectAsync(vault.setItem('fail-encrypt', 'value'))
-        .toBeRejectedWith(jasmine.any(EncryptionError));
+      // Replace the entire crypto object
+      Object.defineProperty(window, 'crypto', {
+        value: {
+          ...originalCrypto,
+          subtle: mockSubtle
+        },
+        writable: true,
+        configurable: true
+      });
 
-      // Restore crypto
-      if (originalSubtle) {
-        window.crypto.subtle = originalSubtle;
+      try {
+        vault.use(encryptionMiddleware(testConfig));
+
+        await expectAsync(vault.setItem('fail-encrypt', 'value'))
+          .toBeRejectedWith(jasmine.any(EncryptionError));
+      } finally {
+        // Restore original crypto
+        Object.defineProperty(window, 'crypto', {
+          value: originalCrypto,
+          writable: true,
+          configurable: true
+        });
       }
     });
 
-    // TODO: Fix decryption failure handling - error propagation
-    xit('should handle decryption failures gracefully', async () => {
+    it('should handle decryption failures gracefully', async () => {
       vault.use(encryptionMiddleware(testConfig));
 
       // Store encrypted data
       await vault.setItem('decrypt-fail-test', 'value');
 
-      // Mock crypto to fail on decrypt
-      const originalSubtle = window.crypto?.subtle;
-      if (originalSubtle) {
-        window.crypto.subtle = {
-          ...originalSubtle,
-          decrypt: jasmine.createSpy('decrypt').and.callFake(() => {
-            return Promise.reject(new Error('Decryption failed'));
-          })
-        };
+      // Store original crypto for restoration
+      const originalCrypto = window.crypto;
 
+      // Create a mock crypto object with failing decrypt
+      const mockSubtle = {
+        ...originalCrypto.subtle,
+        decrypt: jasmine.createSpy('decrypt').and.callFake(() => {
+          return Promise.reject(new Error('Decryption failed'));
+        }),
+        importKey: originalCrypto.subtle.importKey.bind(originalCrypto.subtle),
+        deriveKey: originalCrypto.subtle.deriveKey.bind(originalCrypto.subtle),
+        encrypt: originalCrypto.subtle.encrypt.bind(originalCrypto.subtle)
+      };
+
+      // Replace the entire crypto object
+      Object.defineProperty(window, 'crypto', {
+        value: {
+          ...originalCrypto,
+          subtle: mockSubtle
+        },
+        writable: true,
+        configurable: true
+      });
+
+      try {
         await expectAsync(vault.getItem('decrypt-fail-test'))
           .toBeRejectedWith(jasmine.any(EncryptionError));
-
-        // Restore crypto
-        window.crypto.subtle = originalSubtle;
+      } finally {
+        // Restore original crypto
+        Object.defineProperty(window, 'crypto', {
+          value: originalCrypto,
+          writable: true,
+          configurable: true
+        });
       }
     });
 
@@ -542,35 +575,51 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
     it('should handle missing crypto API gracefully', async () => {
       const originalCrypto = window.crypto;
 
-      // Remove crypto API
-      delete window.crypto;
+      // Remove crypto API using Object.defineProperty
+      Object.defineProperty(window, 'crypto', {
+        value: undefined,
+        writable: true,
+        configurable: true
+      });
 
       try {
         vault.use(encryptionMiddleware(testConfig));
         await expectAsync(vault.setItem('no-crypto', 'value'))
           .toBeRejectedWith(jasmine.any(EncryptionError));
       } finally {
-        // Restore crypto
-        window.crypto = originalCrypto;
+        // Restore crypto using Object.defineProperty
+        Object.defineProperty(window, 'crypto', {
+          value: originalCrypto,
+          writable: true,
+          configurable: true
+        });
       }
     });
 
     it('should handle partial crypto API support', async () => {
       const originalCrypto = window.crypto;
 
-      // Mock partial crypto support
-      window.crypto = {
-        getRandomValues: originalCrypto?.getRandomValues,
-        // Missing subtle API
-      };
+      // Mock partial crypto support using Object.defineProperty
+      Object.defineProperty(window, 'crypto', {
+        value: {
+          getRandomValues: originalCrypto?.getRandomValues?.bind(originalCrypto),
+          // Missing subtle API
+        },
+        writable: true,
+        configurable: true
+      });
 
       try {
         vault.use(encryptionMiddleware(testConfig));
         await expectAsync(vault.setItem('partial-crypto', 'value'))
           .toBeRejectedWith(jasmine.any(EncryptionError));
       } finally {
-        // Restore crypto
-        window.crypto = originalCrypto;
+        // Restore crypto using Object.defineProperty
+        Object.defineProperty(window, 'crypto', {
+          value: originalCrypto,
+          writable: true,
+          configurable: true
+        });
       }
     });
   });
