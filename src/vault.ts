@@ -297,7 +297,7 @@ export default class Vault {
       }
 
       return result;
-    } catch (error) {
+  } catch (error) {
       let handledError = error as Error;
 
       // Run error hooks
@@ -313,7 +313,7 @@ export default class Vault {
         }
       }
 
-  throw handledError;
+      throw handledError;
     }
   }
 

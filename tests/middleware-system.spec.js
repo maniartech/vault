@@ -19,7 +19,7 @@ describe('Middleware System', () => {
 
   describe('Middleware Registration', () => {
   // TODO: Fix jasmineToString error when comparing vault proxy instances
-  fit('should register middleware using use() method', () => {
+  it('should register middleware using use() method', () => {
       const testMiddleware = {
         name: 'test-middleware',
         before: jasmine.createSpy('before').and.returnValue(Promise.resolve())
@@ -120,14 +120,17 @@ describe('Middleware System', () => {
       expect(executionOrder).toEqual(['after1', 'after2']);
     });
 
-    // TODO: Fix error hook execution order test
-    xit('should execute error hooks in registration order', async () => {
+  // TODO: Fix error hook execution order test
+    fit('should execute error hooks in registration order', async () => {
       const executionOrder = [];
 
       const middleware1 = {
         name: 'middleware1',
         before: async (context) => {
-          throw new Error('Test error');
+          if (context.operation === 'set') {
+            throw new Error('Test error');
+          }
+          return context;
         },
         error: async (context, error) => {
           executionOrder.push('error1');
