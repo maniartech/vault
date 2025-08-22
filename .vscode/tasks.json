@@ -40,6 +40,18 @@
 				"$tsc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Rebuild after clear signature simplification",
+			"type": "shell",
+			"command": "yarn build:vault",
+			"group": "build"
+		},
+		{
+			"label": "Run focused performance test",
+			"type": "shell",
+			"command": "yarn test --no-color",
+			"group": "build"
 		}
 	]
 }
