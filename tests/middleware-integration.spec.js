@@ -26,15 +26,15 @@ describe('Middleware Integration', () => {
       vault.use(expirationMiddleware());
     });
 
-    // TODO: Fix validation integration with expiration middleware
-    xit('should validate before applying expiration', async () => {
+  // TODO: Fix validation integration with expiration middleware
+  fit('should validate before applying expiration', async () => {
       // Should reject invalid key before expiration processing
       await expectAsync(vault.setItem('', 'value', { ttl: '1h' }))
         .toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
     });
 
-    // TODO: Fix validation integration - middleware execution issues
-    xit('should apply expiration after validation passes', async () => {
+  // TODO: Fix validation integration - middleware execution issues
+  fit('should apply expiration after validation passes', async () => {
       await vault.setItem('valid-key', 'value', { ttl: '1h' });
 
       const meta = await vault.getItemMeta('valid-key');
@@ -53,8 +53,8 @@ describe('Middleware Integration', () => {
       expect(result).toBeNull();
     });
 
-    // TODO: Fix custom validator with expiration - TTL validation logic
-    xit('should validate custom validators with expiration', async () => {
+  // TODO: Fix custom validator with expiration - TTL validation logic
+  fit('should validate custom validators with expiration', async () => {
       const customValidator = (context) => {
         if (context.key && context.key.startsWith('temp_')) {
           if (!context.meta || !context.meta.ttl) {
@@ -68,11 +68,11 @@ describe('Middleware Integration', () => {
       customVault.use(expirationMiddleware());
 
       // Should fail validation
-      await expectAsync(customVault.setItem('temp_key', 'value'))
+  await expectAsync(customVault.setItem('temp_key', 'value'))
         .toBeRejectedWithError(ValidationError, 'Temporary keys must have TTL');
 
       // Should pass validation and apply expiration
-      await expectAsync(customVault.setItem('temp_key', 'value', { ttl: '1h' }))
+  await expectAsync(customVault.setItem('temp_key', 'value', { ttl: '1h' }))
         .toBeResolved();
 
       const meta = await customVault.getItemMeta('temp_key');

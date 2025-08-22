@@ -18,8 +18,7 @@ describe('Middleware System', () => {
   });
 
   describe('Middleware Registration', () => {
-  // TODO: Fix jasmineToString error when comparing vault proxy instances
-  it('should register middleware using use() method', () => {
+    it('should register middleware using use() method', () => {
       const testMiddleware = {
         name: 'test-middleware',
         before: jasmine.createSpy('before').and.returnValue(Promise.resolve())
@@ -120,7 +119,6 @@ describe('Middleware System', () => {
       expect(executionOrder).toEqual(['after1', 'after2']);
     });
 
-  // TODO: Fix error hook execution order test
     it('should execute error hooks in registration order', async () => {
       const executionOrder = [];
 
@@ -292,8 +290,7 @@ describe('Middleware System', () => {
   });
 
   describe('Error Handling', () => {
-  // TODO: Fix error handling in before hooks
-  it('should catch errors in before hooks and run error handlers', async () => {
+    it('should catch errors in before hooks and run error handlers', async () => {
       let errorHandled = false;
       const testError = new Error('Before hook error');
 
@@ -324,8 +321,7 @@ describe('Middleware System', () => {
       expect(errorHandled).toBe(true);
     });
 
-  // TODO: Fix core operation error handling
-  it('should catch errors in core operations and run error handlers', async () => {
+    it('should catch errors in core operations and run error handlers', async () => {
       let errorHandled = false;
 
       const errorHandler = {
@@ -345,8 +341,7 @@ describe('Middleware System', () => {
       expect(errorHandled).toBe(true);
     });
 
-  // TODO: Fix error transformation handling
-  it('should allow error handlers to transform errors', async () => {
+    it('should allow error handlers to transform errors', async () => {
       const originalError = new Error('Original error');
       const transformedError = new Error('Transformed error');
 
@@ -375,8 +370,7 @@ describe('Middleware System', () => {
         .toBeRejectedWith(transformedError);
     });
 
-  // TODO: Fix error suppression handling
-  it('should allow error handlers to suppress errors by returning undefined', async () => {
+    it('should allow error handlers to suppress errors by returning undefined', async () => {
       const errorMiddleware = {
         name: 'error-thrower',
         before: async (context) => {
@@ -401,8 +395,7 @@ describe('Middleware System', () => {
       expect(result).toBeNull(); // Should return null when error is suppressed
     });
 
-  // TODO: Fix after hook error handling
-  it('should handle errors in after hooks', async () => {
+    it('should handle errors in after hooks', async () => {
       let errorHandled = false;
       const afterError = new Error('After hook error');
 
@@ -434,8 +427,7 @@ describe('Middleware System', () => {
       expect(errorHandled).toBe(true);
     });
 
-    // TODO: Fix error hook error handling
-  it('should handle errors in error hooks themselves', async () => {
+    it('should handle errors in error hooks themselves', async () => {
       const originalError = new Error('Original error');
       const errorHookError = new Error('Error hook error');
 

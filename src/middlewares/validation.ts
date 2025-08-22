@@ -46,9 +46,11 @@ function validationMiddleware(...validators: CustomValidator[]): Middleware {
         }
       }
 
-      // Run custom validators
-      for (const validator of validators) {
-        await validator(context);
+      // Run custom validators only for set operations
+      if (context.operation === 'set') {
+        for (const validator of validators) {
+          await validator(context);
+        }
       }
 
       return context;
