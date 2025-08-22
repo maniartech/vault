@@ -18,8 +18,8 @@ describe('Middleware System', () => {
   });
 
   describe('Middleware Registration', () => {
-    // TODO: Fix jasmineToString error when comparing vault proxy instances
-    xit('should register middleware using use() method', () => {
+  // TODO: Fix jasmineToString error when comparing vault proxy instances
+  fit('should register middleware using use() method', () => {
       const testMiddleware = {
         name: 'test-middleware',
         before: jasmine.createSpy('before').and.returnValue(Promise.resolve())
@@ -30,8 +30,7 @@ describe('Middleware System', () => {
       expect(vault.middlewares).toContain(testMiddleware);
     });
 
-    // TODO: Fix jasmineToString error when comparing vault proxy instances
-    xit('should allow method chaining when registering multiple middlewares', () => {
+  it('should allow method chaining when registering multiple middlewares', () => {
       const middleware1 = { name: 'middleware1' };
       const middleware2 = { name: 'middleware2' };
       const middleware3 = { name: 'middleware3' };
