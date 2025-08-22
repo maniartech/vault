@@ -73,12 +73,13 @@ describe('Performance and Stress Tests', () => {
       console.log(`  Set operations: ${setDuration.toFixed(2)}ms (${(setDuration/itemCount).toFixed(2)}ms per item)`);
       console.log(`  Get operations: ${getDuration.toFixed(2)}ms (${(getDuration/itemCount).toFixed(2)}ms per item)`);
 
-      // Reasonable performance expectations (adjust based on environment)
-      // TODO: Fix performance bounds - expectations are too strict for development environment
-      // expect(setDuration).toBeLessThan(10000); // 10 seconds for 1000 sets
-      // expect(getDuration).toBeLessThan(5000);  // 5 seconds for 1000 gets
-      // expect(setDuration / itemCount).toBeLessThan(50); // Less than 50ms per set
-      // expect(getDuration / itemCount).toBeLessThan(25); // Less than 25ms per get
+  // Reasonable performance expectations (generous to avoid environment flakiness)
+  // Absolute caps for total batch
+  expect(setDuration).toBeLessThan(30000); // < 30s for 1000 sets (parallelized)
+  expect(getDuration).toBeLessThan(20000); // < 20s for 1000 gets (parallelized)
+  // Per-item averages (coarse sanity check regardless of parallelization)
+  expect(setDuration / itemCount).toBeLessThan(100); // < 100ms per set on average
+  expect(getDuration / itemCount).toBeLessThan(75);  // < 75ms per get on average
     });
 
     it('should handle large individual items efficiently', async () => {
@@ -111,9 +112,12 @@ describe('Performance and Stress Tests', () => {
         console.log(`Large item test - ${name}:`);
         console.log(`  Set: ${setDuration.toFixed(2)}ms, Get: ${getDuration.toFixed(2)}ms`);
 
-        // TODO: Fix performance bounds - scaling expectations are too strict
-        // expect(setDuration).toBeLessThan(size / 100); // Rough scaling expectation
-        // expect(getDuration).toBeLessThan(size / 200);
+  // Environment-tolerant scaling bounds with base overhead + per-KB factors
+  const sizeKB = size / 1024;
+  const maxSetMs = 300 + sizeKB * 12; // e.g., 1MB => ~12.6s
+  const maxGetMs = 200 + sizeKB * 8;  // e.g., 1MB => ~8.4s
+  expect(setDuration).toBeLessThan(maxSetMs);
+  expect(getDuration).toBeLessThan(maxGetMs);
       }
     });
 
@@ -234,7 +238,6 @@ describe('Performance and Stress Tests', () => {
   });
 
   describe('Middleware Performance Impact', () => {
-  // TODO: Fix middleware performance impact test - encryption overhead expectations
   it('should measure performance impact of individual middlewares', async () => {
       const testData = { content: 'test-content', id: 123, timestamp: Date.now() };
       const operationCount = 100;
@@ -399,7 +402,7 @@ describe('Performance and Stress Tests', () => {
   });
 
   describe('EncryptedVault Performance', () => {
-  // TODO: Re-enable when performance variance is stabilized across environments.
+
   // This spec compares two encryption setups and can be noisy on CI/local machines.
   it('should compare EncryptedVault vs manual encryption setup', async () => {
       const testData = { secret: 'confidential-data', id: 123 };
@@ -496,7 +499,6 @@ describe('Performance and Stress Tests', () => {
       expect(finalLength).toBeLessThanOrEqual(concurrentWorkers * operationsPerWorker);
     });
 
-  // TODO: Fix rapid vault creation test - timing and resource management issues
   it('should handle rapid vault creation and destruction', async () => {
       const vaultCount = 100;
       const operations = [];
@@ -568,7 +570,6 @@ describe('Performance and Stress Tests', () => {
       console.log(`Memory stress test completed - ${largeItemCount} items, ${(largeItemCount * itemSize / 1024 / 1024).toFixed(2)}MB total`);
     });
 
-  // TODO: Fix error resilience test - stress condition expectations
   it('should handle error resilience under stress', async () => {
       vault = new Vault('error-stress');
 
@@ -604,8 +605,10 @@ describe('Performance and Stress Tests', () => {
 
       console.log(`Error resilience test - Operations: ${operationCount}, Success: ${successCount}, Failures: ${failureCount}`);
 
-      // Should have some successes and some failures
-      expect(successCount).toBeGreaterThan(operationCount * 0.8); // At least 80% success
+  // Should have some successes and some failures
+  // With a 10% random failure probability per operation and two ops per iteration
+  // the expected success rate is ~81%. Use a tolerant lower bound to avoid flakiness.
+  expect(successCount).toBeGreaterThanOrEqual(Math.floor(operationCount * 0.75)); // >= 75% success
       expect(failureCount).toBeGreaterThan(0); // Some failures expected
       expect(successCount + failureCount).toBe(operationCount);
     });
