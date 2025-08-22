@@ -28,8 +28,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       vault.use(encryptionMiddleware(testConfig));
     });
 
-    // TODO: Fix encryption handling of JavaScript primitive types - Infinity/NaN not handled correctly
-    xit('should handle all JavaScript primitive types', async () => {
+  it('should handle all JavaScript primitive types', async () => {
       const primitives = [
         { key: 'string', value: 'Hello World', expected: 'Hello World' },
         { key: 'number-int', value: 42, expected: 42 },

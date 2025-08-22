@@ -37,6 +37,8 @@ function encryptionMiddleware(
   options: EncryptionOptions = {}
 ): Middleware {
   const keyCache = new Map<string, CryptoKey>();
+  // Coalesce concurrent key derivation per vault key to a single in-flight Promise
+  const keyPromises = new Map<string, Promise<CryptoKey | null>>();
   const {
     keyDerivationIterations = 100000,
     maxCachedKeys = 100
@@ -45,42 +47,85 @@ function encryptionMiddleware(
   /**
    * Gets or generates the encryption key for the specified vault key
    */
-  async function getKey(key: string): Promise<CryptoKey> {
-    if (keyCache.has(key)) {
+  async function getKey(key: string): Promise<CryptoKey | null> {
+    // If caching is enabled and we already have a key, return it
+    if (maxCachedKeys > 0 && keyCache.has(key)) {
       return keyCache.get(key)!;
     }
 
-    let credential: EncryptionCredential;
-
-    if (typeof config === 'function') {
-      credential = await config(key);
-    } else if (config !== null) {
-      const c = config as EncryptionCredential;
-      if (!c.password || !c.salt) {
-        throw new EncryptionError('Invalid encryption credential');
-      }
-      credential = c;
-    } else {
-      throw new EncryptionError('No encryption configuration provided');
+    // Coalesce concurrent requests for the same key
+    if (keyPromises.has(key)) {
+      return keyPromises.get(key)!;
     }
 
-    const cryptoKey = await generateKey(
-      credential.password,
-      await generateSalt(credential.salt),
-      keyDerivationIterations
-    );
+    const promise = (async () => {
+      let credential: EncryptionCredential | null;
 
-    // Manage cache size
-    if (keyCache.size >= maxCachedKeys) {
-      const iter = keyCache.keys().next();
-      const firstKey: string | undefined = iter.value;
-      if (firstKey !== undefined) {
-        keyCache.delete(firstKey);
+      if (typeof config === 'function') {
+        const provided = await config(key);
+        // A null/undefined credential means "skip encryption for this key"
+        if (provided == null) return null;
+        // Validate shape
+        if (typeof (provided as any).password !== 'string' || typeof (provided as any).salt !== 'string') {
+          throw new EncryptionError('Invalid encryption credential');
+        }
+        credential = provided as EncryptionCredential;
+      } else if (config !== null) {
+        const c = config as EncryptionCredential;
+        if (!c || typeof c.password !== 'string' || typeof c.salt !== 'string' || !c.password || !c.salt) {
+          throw new EncryptionError('Invalid encryption credential');
+        }
+        credential = c;
+      } else {
+        // Global config is null: encryption is disabled
+        return null;
+      }
+
+      const cryptoKey = await generateKey(
+        credential.password,
+        await generateSalt(credential.salt),
+        keyDerivationIterations
+      );
+
+      // Manage cache size (only when caching is enabled)
+      if (maxCachedKeys > 0) {
+        if (keyCache.size >= maxCachedKeys) {
+          const iter = keyCache.keys().next();
+          const firstKey: string | undefined = iter.value;
+          if (firstKey !== undefined) {
+            keyCache.delete(firstKey);
+          }
+        }
+
+        keyCache.set(key, cryptoKey);
+      }
+
+      return cryptoKey;
+    })();
+
+    keyPromises.set(key, promise);
+    try {
+      return await promise;
+    } finally {
+      keyPromises.delete(key);
+    }
+  }
+
+  // Internal type tag for values that JSON cannot represent faithfully
+  type EncodedSpecial = { __vt: 'number'; v: 'NaN' | 'Infinity' | '-Infinity' };
+  function encodeSpecialNumber(n: number): EncodedSpecial {
+    if (Number.isNaN(n)) return { __vt: 'number', v: 'NaN' };
+    return n === Infinity ? { __vt: 'number', v: 'Infinity' } : { __vt: 'number', v: '-Infinity' };
+  }
+  function decodeMaybeSpecial(val: any): any {
+    if (val && typeof val === 'object' && val.__vt === 'number') {
+      switch (val.v) {
+        case 'NaN': return NaN;
+        case 'Infinity': return Infinity;
+        case '-Infinity': return -Infinity;
       }
     }
-
-    keyCache.set(key, cryptoKey);
-    return cryptoKey;
+    return val;
   }
 
   return {
@@ -94,7 +139,20 @@ function encryptionMiddleware(
         if (key && value !== null && value !== undefined) {
           try {
             const encKey = await getKey(key);
-            const dataToEncrypt = typeof value === 'string' ? value : JSON.stringify(value);
+            // If provider indicates to skip encryption for this key, pass-through
+            if (!encKey) return context;
+
+            let dataToEncrypt: string;
+            if (typeof value === 'string') {
+              // Store raw string; we'll detect as non-JSON on decrypt and return as-is
+              dataToEncrypt = value;
+            } else if (typeof value === 'number' && !Number.isFinite(value)) {
+              // Wrap special numbers so they can be faithfully restored
+              dataToEncrypt = JSON.stringify(encodeSpecialNumber(value));
+            } else {
+              dataToEncrypt = JSON.stringify(value);
+            }
+
             const encryptedValue = await encrypt(encKey, dataToEncrypt);
 
             // Store as a special object that IndexedDB can handle reliably
@@ -104,7 +162,7 @@ function encryptionMiddleware(
             };
           } catch (error) {
             throw new EncryptionError(
-              `Failed to encrypt value for key "${key}"`,
+              `Failed to encrypt value for key "${key}": ${(error as any)?.message ?? ''}`.trim(),
               error instanceof Error ? error : new Error(String(error))
             );
           }
@@ -124,12 +182,17 @@ function encryptionMiddleware(
             // Check if this is encrypted data
             if (result && typeof result === 'object' && result.__encrypted && Array.isArray(result.data)) {
               const encKey = await getKey(key);
+              if (!encKey) {
+                // Config for this key says no encryption; return raw as-is
+                return result;
+              }
               const encryptedData = new Uint8Array(result.data).buffer;
               const decryptedValue = await decrypt(encKey, encryptedData);
 
               // Try to parse as JSON, fallback to string
               try {
-                return JSON.parse(decryptedValue);
+                const parsed = JSON.parse(decryptedValue);
+                return decodeMaybeSpecial(parsed);
               } catch {
                 return decryptedValue;
               }
@@ -139,7 +202,7 @@ function encryptionMiddleware(
             return result;
           } catch (error) {
             throw new EncryptionError(
-              `Failed to decrypt value for key "${key}"`,
+              `Failed to decrypt value for key "${key}": ${(error as any)?.message ?? ''}`.trim(),
               error instanceof Error ? error : new Error(String(error))
             );
           }
