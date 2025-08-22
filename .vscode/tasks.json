@@ -52,6 +52,30 @@
 			"type": "shell",
 			"command": "yarn test --no-color",
 			"group": "build"
+		},
+		{
+			"label": "Run focused validation bulk test",
+			"type": "shell",
+			"command": "yarn test --no-color --grep \"should handle validation during bulk operations\"",
+			"group": "build"
+		},
+		{
+			"label": "Run full test suite",
+			"type": "shell",
+			"command": "yarn test --no-color",
+			"group": "build"
+		},
+		{
+			"label": "Run single failing spec",
+			"type": "shell",
+			"command": "yarn test --no-color --grep \"should validate custom validators with expiration\"",
+			"group": "build"
+		},
+		{
+			"label": "Run full test suite again",
+			"type": "shell",
+			"command": "yarn test --no-color",
+			"group": "build"
 		}
 	]
 }

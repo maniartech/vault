@@ -52,10 +52,10 @@ describe('Middleware Integration', () => {
       expect(result).toBeNull();
     });
 
-  // TODO: Fix custom validator with expiration - TTL validation logic
-  fit('should validate custom validators with expiration', async () => {
+  it('should validate custom validators with expiration', async () => {
       const customValidator = (context) => {
-        if (context.key && context.key.startsWith('temp_')) {
+        // Apply this rule only during set operations; other ops like get/getItemMeta should pass
+        if (context.operation === 'set' && context.key && context.key.startsWith('temp_')) {
           if (!context.meta || !context.meta.ttl) {
             throw new ValidationError('Temporary keys must have TTL');
           }
@@ -227,7 +227,7 @@ describe('Middleware Integration', () => {
     });
 
     // TODO: Fix complex workflow integration - multiple middleware failures
-    xit('should handle complex workflows', async () => {
+    it('should handle complex workflows', async () => {
       const testData = {
         user: 'john_doe',
         permissions: ['read', 'write'],
@@ -248,18 +248,40 @@ describe('Middleware Integration', () => {
     });
 
     // TODO: Fix expiration with encrypted data - encryption/decryption with expiration
-    xit('should handle expiration with encrypted data', async () => {
-      await vault.setItem('short-lived-secret', 'confidential-data', { ttl: 50 }); // 50ms
+    it('should handle expiration with encrypted data', async () => {
+      // Create a fresh vault for this test to avoid middleware accumulation issues
+      const freshVault = new Vault('test-expiration-encryption');
+      freshVault.use(validationMiddleware());
+      freshVault.use(expirationMiddleware());
+      freshVault.use(encryptionMiddleware(encryptionConfig));
 
-      // Data should be retrievable before expiration
-      const beforeExpiration = await vault.getItem('short-lived-secret');
-      expect(beforeExpiration).toBe('confidential-data');
+      try {
+        // Use a longer TTL to ensure enough time
+        await freshVault.setItem('short-lived-secret', 'confidential-data', { ttl: '1h' });
 
-      // Wait for expiration
-      await new Promise(resolve => setTimeout(resolve, 100));
+        // Check if the item was actually stored
+        const meta = await freshVault.getItemMeta('short-lived-secret');
+        console.log('Stored metadata:', meta);
 
-      const afterExpiration = await vault.getItem('short-lived-secret');
-      expect(afterExpiration).toBeNull();
+        // Data should be retrievable before expiration
+        const beforeExpiration = await freshVault.getItem('short-lived-secret');
+        console.log('Retrieved value:', beforeExpiration);
+        expect(beforeExpiration).toBe('confidential-data');
+
+        // Test actual expiration with short TTL
+        await freshVault.setItem('quick-expire', 'test-data', { ttl: 500 }); // 500ms
+        // Immediately check if it's there
+        const immediate = await freshVault.getItem('quick-expire');
+        expect(immediate).toBe('test-data');
+
+        // Wait for expiration
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        const afterExpiration = await freshVault.getItem('quick-expire');
+        expect(afterExpiration).toBeNull();
+      } finally {
+        await freshVault.clear();
+      }
     });
   });
 

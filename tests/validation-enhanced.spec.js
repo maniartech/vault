@@ -295,7 +295,7 @@ describe('Validation Middleware - Enhanced Coverage', () => {
       await customVault.clear();
     });
 
-    it('should handle validation during bulk operations', async () => {
+  it('should handle validation during bulk operations', async () => {
       const bulkValidator = (context) => {
         if (context.operation === 'clear' && !context.confirmClear) {
           throw new ValidationError('Clear operation requires confirmation');

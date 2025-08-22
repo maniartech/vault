@@ -611,6 +611,16 @@ describe('Performance and Stress Tests', () => {
   expect(successCount).toBeGreaterThanOrEqual(Math.floor(operationCount * 0.75)); // >= 75% success
       expect(failureCount).toBeGreaterThan(0); // Some failures expected
       expect(successCount + failureCount).toBe(operationCount);
+
+      // Best-effort cleanup within the test to avoid random failures in global afterEach
+      try {
+        await vault.clear();
+      } catch (_) {
+        // Ignore random middleware errors during cleanup
+      } finally {
+        // Prevent afterEach from attempting another clear that could randomly fail
+        vault = null;
+      }
     });
   });
 
