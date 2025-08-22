@@ -401,7 +401,7 @@ describe('Performance and Stress Tests', () => {
   describe('EncryptedVault Performance', () => {
   // TODO: Re-enable when performance variance is stabilized across environments.
   // This spec compares two encryption setups and can be noisy on CI/local machines.
-  fit('should compare EncryptedVault vs manual encryption setup', async () => {
+  it('should compare EncryptedVault vs manual encryption setup', async () => {
       const testData = { secret: 'confidential-data', id: 123 };
       const operationCount = 50;
 
@@ -497,7 +497,7 @@ describe('Performance and Stress Tests', () => {
     });
 
   // TODO: Fix rapid vault creation test - timing and resource management issues
-  fit('should handle rapid vault creation and destruction', async () => {
+  it('should handle rapid vault creation and destruction', async () => {
       const vaultCount = 100;
       const operations = [];
 
@@ -569,7 +569,7 @@ describe('Performance and Stress Tests', () => {
     });
 
   // TODO: Fix error resilience test - stress condition expectations
-  fit('should handle error resilience under stress', async () => {
+  it('should handle error resilience under stress', async () => {
       vault = new Vault('error-stress');
 
       // Add middleware that randomly fails
