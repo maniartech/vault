@@ -55,8 +55,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix encryption special number handling - NaN comparison issues
-    xit('should handle special number values', async () => {
+  it('should handle special number values', async () => {
       const specialNumbers = [
         { key: 'nan', value: NaN },
         { key: 'max-safe-integer', value: Number.MAX_SAFE_INTEGER },
@@ -78,8 +77,8 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix encryption complex object handling - circular reference detection
-    xit('should handle complex nested objects', async () => {
+  // TODO: Fix encryption complex object handling - circular reference detection
+  it('should handle complex nested objects', async () => {
       const complexObject = {
         level1: {
           level2: {
@@ -157,8 +156,8 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix encryption large string handling - performance and timeout issues
-    xit('should handle large strings and binary data', async () => {
+  // TODO: Fix encryption large string handling - performance and timeout issues
+  it('should handle large strings and binary data', async () => {
       const smallString = 'Small string';
       const mediumString = 'x'.repeat(1000); // 1KB
       const largeString = 'y'.repeat(100000); // 100KB
@@ -183,8 +182,8 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix encryption Unicode handling - special character encoding/decoding
-    xit('should handle Unicode and special characters', async () => {
+  // TODO: Fix encryption Unicode handling - special character encoding/decoding
+  it('should handle Unicode and special characters', async () => {
       const unicodeStrings = [
         'ASCII text',
         'Café with açcénts',
@@ -212,8 +211,8 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix encryption array handling - mixed and sparse elements serialization
-    xit('should handle arrays with mixed and sparse elements', async () => {
+  // TODO: Fix encryption array handling - mixed and sparse elements serialization
+  it('should handle arrays with mixed and sparse elements', async () => {
       const sparseArray = [];
       sparseArray[0] = 'first';
       sparseArray[5] = 'sixth';
@@ -251,8 +250,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
   });
 
   describe('Configuration Edge Cases', () => {
-    // TODO: Fix encryption empty password/salt handling - validation logic
-    xit('should handle empty password and salt', async () => {
+  it('should handle empty password and salt', async () => {
       const emptyConfig = { password: '', salt: '' };
 
       try {
