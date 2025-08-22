@@ -26,8 +26,7 @@ describe('Middleware Integration', () => {
       vault.use(expirationMiddleware());
     });
 
-  // TODO: Fix validation integration with expiration middleware
-  xit('should validate before applying expiration', async () => {
+  it('should validate before applying expiration', async () => {
       // Should reject invalid key before expiration processing
       await expectAsync(vault.setItem('', 'value', { ttl: '1h' }))
         .toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
@@ -226,7 +225,6 @@ describe('Middleware Integration', () => {
         .toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
     });
 
-    // TODO: Fix complex workflow integration - multiple middleware failures
     it('should handle complex workflows', async () => {
       const testData = {
         user: 'john_doe',
@@ -247,7 +245,6 @@ describe('Middleware Integration', () => {
       expect(meta.expires).toBeDefined();
     });
 
-    // TODO: Fix expiration with encrypted data - encryption/decryption with expiration
     it('should handle expiration with encrypted data', async () => {
       // Create a fresh vault for this test to avoid middleware accumulation issues
       const freshVault = new Vault('test-expiration-encryption');
@@ -260,12 +257,10 @@ describe('Middleware Integration', () => {
         await freshVault.setItem('short-lived-secret', 'confidential-data', { ttl: '1h' });
 
         // Check if the item was actually stored
-        const meta = await freshVault.getItemMeta('short-lived-secret');
-        console.log('Stored metadata:', meta);
+  const meta = await freshVault.getItemMeta('short-lived-secret');
 
         // Data should be retrievable before expiration
-        const beforeExpiration = await freshVault.getItem('short-lived-secret');
-        console.log('Retrieved value:', beforeExpiration);
+  const beforeExpiration = await freshVault.getItem('short-lived-secret');
         expect(beforeExpiration).toBe('confidential-data');
 
         // Test actual expiration with short TTL
