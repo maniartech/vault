@@ -150,12 +150,13 @@ const proxyHandler = {
           };
         }
         if (key === 'clear') {
-          return async () => {
+          return async (...args: any[]) => {
             // Wait for all pending ops to settle, then clear; expose as pending clear
             const clearPromise = (async () => {
               await Promise.all([...pendingMap.values()].map(p => p.catch(() => undefined)));
               try {
-                return await member.call(target);
+                // Forward any arguments (e.g., confirmation options) to the underlying clear
+                return await member.apply(target, args);
               } finally {
                 pendingMap.clear();
                 // clear completed

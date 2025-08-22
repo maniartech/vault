@@ -21,8 +21,7 @@ describe('Validation Middleware - Enhanced Coverage', () => {
       vault.use(validationMiddleware());
     });
 
-    // TODO: Fix validation for whitespace-only keys - promise rejection not working
-    xit('should handle whitespace-only keys', async () => {
+  it('should handle whitespace-only keys', async () => {
       await expectAsync(vault.setItem('   ', 'value'))
         .toBeRejectedWithError(ValidationError, 'Key must be a non-empty string');
 
@@ -65,8 +64,7 @@ describe('Validation Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix complex validation logic - middleware validation edge cases
-    xit('should handle complex metadata validation', async () => {
+    it('should handle complex metadata validation', async () => {
       const validMetadata = [
         null,
         undefined,
@@ -297,8 +295,7 @@ describe('Validation Middleware - Enhanced Coverage', () => {
       await customVault.clear();
     });
 
-    // TODO: Fix validation during bulk operations - clear operation validation
-    xit('should handle validation during bulk operations', async () => {
+    it('should handle validation during bulk operations', async () => {
       const bulkValidator = (context) => {
         if (context.operation === 'clear' && !context.confirmClear) {
           throw new ValidationError('Clear operation requires confirmation');
@@ -319,7 +316,9 @@ describe('Validation Middleware - Enhanced Coverage', () => {
       // Verify data is still there
       expect(await customVault.length()).toBe(2);
 
-      await customVault.clear();
+      // Clear with confirmation should succeed
+      await expectAsync(customVault.clear(true)).toBeResolved();
+      expect(await customVault.length()).toBe(0);
     });
   });
 

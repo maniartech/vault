@@ -111,16 +111,48 @@ export default class Vault {
     });
   }
 
-  /**
-   * Clear the database.
-   * @returns {Promise<void>}
-   */
-  /**
-   * Clear all items from the vault.
-   */
-  public async clear(): Promise<void> {
+ /**
+  * Clear all items from the vault.
+  *
+  * Why confirm?
+  * Clearing all data is a destructive operation. Middleware can opt-in to
+  * require an explicit confirmation to prevent accidental data loss
+  * (for example, a validation/compliance "safety lock"). When such a guard is
+  * installed, calling `clear()` without confirmation will be rejected. Passing
+  * `true` explicitly acknowledges the destructive operation and allows it to proceed.
+  *
+  * Example (middleware guard requiring confirmation):
+  *
+  *   const guard = {
+  *     async before(ctx) {
+  *       if (ctx.operation === 'clear' && !ctx.confirmClear) {
+  *         // Throw your own error type if desired
+  *         throw new Error('Clear operation requires confirmation');
+  *       }
+  *       return ctx;
+  *     }
+  *   };
+  *   vault.use(guard);
+  *
+  *   // Without confirmation: rejected by guard
+  *   await vault.clear();
+  *
+  *   // With confirmation: proceeds and clears all data
+  *   await vault.clear(true);
+  *
+  * Notes:
+  * - The `confirm` parameter is forwarded to middleware as `context.confirmClear`.
+  * - This flag is only consulted when a middleware chooses to enforce it; without
+  *   such a guard, `clear()` will behave as usual and remove all items.
+  *
+  * @param {boolean} [confirm] - Pass true to confirm bulk clear when validators require it.
+  * @returns {Promise<void>}
+  */
+  public async clear(confirm?: boolean): Promise<void> {
+    const confirmClear = confirm;
     const context: MiddlewareContext = {
-      operation: 'clear'
+      operation: 'clear',
+      confirmClear
     };
 
     return this.executeWithMiddleware(context, async () => {
