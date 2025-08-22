@@ -568,8 +568,8 @@ describe('Performance and Stress Tests', () => {
       console.log(`Memory stress test completed - ${largeItemCount} items, ${(largeItemCount * itemSize / 1024 / 1024).toFixed(2)}MB total`);
     });
 
-    // TODO: Fix error resilience test - stress condition expectations
-    xit('should handle error resilience under stress', async () => {
+  // TODO: Fix error resilience test - stress condition expectations
+  fit('should handle error resilience under stress', async () => {
       vault = new Vault('error-stress');
 
       // Add middleware that randomly fails
