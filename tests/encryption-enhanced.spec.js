@@ -77,7 +77,6 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-  // TODO: Fix encryption complex object handling - circular reference detection
   it('should handle complex nested objects', async () => {
       const complexObject = {
         level1: {
@@ -156,7 +155,6 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-  // TODO: Fix encryption large string handling - performance and timeout issues
   it('should handle large strings and binary data', async () => {
       const smallString = 'Small string';
       const mediumString = 'x'.repeat(1000); // 1KB
@@ -182,7 +180,6 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-  // TODO: Fix encryption Unicode handling - special character encoding/decoding
   it('should handle Unicode and special characters', async () => {
       const unicodeStrings = [
         'ASCII text',
@@ -211,7 +208,6 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-  // TODO: Fix encryption array handling - mixed and sparse elements serialization
   it('should handle arrays with mixed and sparse elements', async () => {
       const sparseArray = [];
       sparseArray[0] = 'first';
@@ -265,8 +261,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix encryption very long password/salt handling - performance issues
-    xit('should handle very long passwords and salts', async () => {
+    it('should handle very long passwords and salts', async () => {
       const longConfig = {
         password: 'x'.repeat(10000), // 10KB password
         salt: 'y'.repeat(10000) // 10KB salt
@@ -284,8 +279,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix encryption special characters in credentials - encoding issues
-    xit('should handle special characters in password and salt', async () => {
+    it('should handle special characters in password and salt', async () => {
       const specialConfig = {
         password: '🔑🔒💾\u0000\u001F\u007F\u0080\u009F\u200B',
         salt: 'Çafé with ñáéíóú and العربية'
@@ -298,8 +292,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       expect(result).toBe('test-value');
     });
 
-    // TODO: Fix encryption config edge case - null config handling
-    xit('should handle function-based config with edge cases', async () => {
+    it('should handle function-based config with edge cases', async () => {
       let callCount = 0;
       const configProvider = async (key) => {
         callCount++;
@@ -349,8 +342,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       expect(callCount).toBeGreaterThan(0);
     });
 
-    // TODO: Fix encryption async config provider - timing and retry logic
-    xit('should handle async config provider with delays and retries', async () => {
+    it('should handle async config provider with delays and retries', async () => {
       let attemptCount = 0;
       const delayedConfigProvider = async (key) => {
         attemptCount++;
@@ -381,8 +373,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
   });
 
   describe('Key Caching Edge Cases', () => {
-    // TODO: Fix encryption cache implementation - values returning null
-    xit('should handle cache eviction correctly', async () => {
+    it('should handle cache eviction correctly', async () => {
       const configProvider = jasmine.createSpy('configProvider').and.callFake(async (key) => {
         return { password: `password-${key}`, salt: `salt-${key}` };
       });
@@ -414,8 +405,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       expect(configProvider).toHaveBeenCalledTimes(5); // One more call
     });
 
-    // TODO: Fix encryption cache zero size handling - spy call count mismatch
-    xit('should handle cache with zero size', async () => {
+    it('should handle cache with zero size', async () => {
       const configProvider = jasmine.createSpy('configProvider').and.callFake(async (key) => {
         return { password: `password-${key}`, salt: `salt-${key}` };
       });
@@ -430,8 +420,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       expect(configProvider).toHaveBeenCalledTimes(3);
     });
 
-    // TODO: Fix encryption cache large size handling - cache overflow issues
-    xit('should handle cache with very large size', async () => {
+    it('should handle cache with very large size', async () => {
       const configProvider = jasmine.createSpy('configProvider').and.callFake(async (key) => {
         return { password: `password-${key}`, salt: `salt-${key}` };
       });
@@ -453,8 +442,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       expect(configProvider).toHaveBeenCalledTimes(100); // No additional calls
     });
 
-    // TODO: Fix encryption concurrent cache access - synchronization issues
-    xit('should handle concurrent cache access', async () => {
+    it('should handle concurrent cache access', async () => {
       let configProviderCalls = 0;
       const configProvider = async (key) => {
         configProviderCalls++;
@@ -551,8 +539,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       await rawVault.clear();
     });
 
-    // TODO: Fix crypto API detection - missing API handling
-    xit('should handle missing crypto API gracefully', async () => {
+    it('should handle missing crypto API gracefully', async () => {
       const originalCrypto = window.crypto;
 
       // Remove crypto API
@@ -568,8 +555,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix partial crypto API support - feature detection
-    xit('should handle partial crypto API support', async () => {
+    it('should handle partial crypto API support', async () => {
       const originalCrypto = window.crypto;
 
       // Mock partial crypto support
@@ -594,8 +580,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       vault.use(encryptionMiddleware(testConfig));
     });
 
-    // TODO: Fix encryption rapid operations - performance and concurrency
-    xit('should handle rapid encryption/decryption operations', async () => {
+    it('should handle rapid encryption/decryption operations', async () => {
       const operationCount = 100;
       const startTime = performance.now();
 
@@ -627,8 +612,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       expect(getTime - setTime).toBeLessThan(5000); // 5 seconds for 100 gets
     });
 
-    // TODO: Fix encryption large data efficiency - performance optimization
-    xit('should handle large data encryption efficiently', async () => {
+    it('should handle large data encryption efficiently', async () => {
       const largeData = {
         array: new Array(10000).fill(null).map((_, i) => ({
           id: i,
@@ -677,8 +661,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       expect(length).toBe(itemCount);
     });
 
-    // TODO: Fix encryption concurrent limited resources - resource management
-    xit('should handle concurrent encryption with limited resources', async () => {
+    it('should handle concurrent encryption with limited resources', async () => {
       const concurrentCount = 20;
       const promises = [];
 
@@ -700,8 +683,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
   });
 
   describe('Cross-Browser Compatibility Edge Cases', () => {
-    // TODO: Fix encryption TextEncoder/TextDecoder handling - cross-browser compatibility
-    xit('should handle different TextEncoder/TextDecoder implementations', async () => {
+    it('should handle different TextEncoder/TextDecoder implementations', async () => {
       const originalTextEncoder = window.TextEncoder;
       const originalTextDecoder = window.TextDecoder;
 
@@ -734,8 +716,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix encryption ArrayBuffer implementations - platform compatibility
-    xit('should handle different ArrayBuffer implementations', async () => {
+    it('should handle different ArrayBuffer implementations', async () => {
       vault.use(encryptionMiddleware(testConfig));
 
       // Test with various binary data types
@@ -753,8 +734,7 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix encryption platform-specific behaviors - cross-platform compatibility
-    xit('should handle platform-specific crypto behaviors', async () => {
+    it('should handle platform-specific crypto behaviors', async () => {
       vault.use(encryptionMiddleware(testConfig));
 
       // Test with various data that might behave differently across platforms
