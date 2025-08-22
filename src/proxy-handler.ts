@@ -129,11 +129,16 @@ const proxyHandler = {
             if (pc) await pc;
             const prior = pendingMap.get(k);
             if (prior) await prior;
-            const op = Promise.resolve(member.call(target, k))
+            // Call the real method and capture its result (void on success, null on suppression)
+            const core = Promise.resolve(member.call(target, k));
+            // For pending map consumers, resolve to null when deletion completes
+            const op = core
               .then(() => null)
+              .catch(() => undefined) // swallow rejection to avoid unhandled promise
               .finally(() => pendingMap.delete(k));
             pendingMap.set(k, op);
-            await op; // preserve original API which resolves when deletion done
+            // Return the underlying result
+            return await core;
           };
         }
         if (key === 'setItem') {
@@ -141,12 +146,16 @@ const proxyHandler = {
             // Chain after any prior pending operation for that key
             const pc = getPendingClear(target);
             const prior = pc ? pc.then(() => undefined) : (pendingMap.get(k) || Promise.resolve());
-            const op = prior
-              .then(() => member.call(target, k, v, meta))
+            // Execute the real call (resolves to void on success or null on suppression)
+            const core = prior.then(() => member.call(target, k, v, meta));
+            // For pending map consumers (e.g., property reads), resolve to the value written
+            const op = core
               .then(() => v)
+              .catch(() => undefined) // swallow rejection to avoid unhandled promise
               .finally(() => pendingMap.delete(k));
             pendingMap.set(k, op);
-            await op; // resolve when write is persisted
+            // Return the underlying result to callers of setItem
+            return await core;
           };
         }
         if (key === 'clear') {
@@ -219,6 +228,7 @@ const proxyHandler = {
   const p = (pc ? pc.then(() => (target as any).setItem(key as string, value))
           : (target as any).setItem(key as string, value))
       .then(() => value)
+      .catch(() => undefined) // swallow rejection from failing setItem
       .finally(() => {
         // Clear once settled to avoid stale promises
         pendingMap.delete(key);
@@ -245,6 +255,7 @@ const proxyHandler = {
   const p = (pc ? pc.then(() => (target as any).removeItem(key as string))
           : (target as any).removeItem(key as string))
       .then(() => null)
+      .catch(() => undefined) // swallow rejection from failing removeItem
       .finally(() => {
         pendingMap.delete(key);
       });

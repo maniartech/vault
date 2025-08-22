@@ -121,7 +121,7 @@ describe('Middleware System', () => {
     });
 
   // TODO: Fix error hook execution order test
-    fit('should execute error hooks in registration order', async () => {
+    it('should execute error hooks in registration order', async () => {
       const executionOrder = [];
 
       const middleware1 = {
@@ -292,15 +292,18 @@ describe('Middleware System', () => {
   });
 
   describe('Error Handling', () => {
-    // TODO: Fix error handling in before hooks
-    xit('should catch errors in before hooks and run error handlers', async () => {
+  // TODO: Fix error handling in before hooks
+  it('should catch errors in before hooks and run error handlers', async () => {
       let errorHandled = false;
       const testError = new Error('Before hook error');
 
       const errorMiddleware = {
         name: 'error-thrower',
         before: async (context) => {
-          throw testError;
+          if (context.operation === 'set') {
+            throw testError;
+          }
+          return context;
         }
       };
 
@@ -321,8 +324,8 @@ describe('Middleware System', () => {
       expect(errorHandled).toBe(true);
     });
 
-    // TODO: Fix core operation error handling
-    xit('should catch errors in core operations and run error handlers', async () => {
+  // TODO: Fix core operation error handling
+  it('should catch errors in core operations and run error handlers', async () => {
       let errorHandled = false;
 
       const errorHandler = {
@@ -342,15 +345,19 @@ describe('Middleware System', () => {
       expect(errorHandled).toBe(true);
     });
 
-    // TODO: Fix error transformation handling
-    xit('should allow error handlers to transform errors', async () => {
+  // TODO: Fix error transformation handling
+  it('should allow error handlers to transform errors', async () => {
       const originalError = new Error('Original error');
       const transformedError = new Error('Transformed error');
 
       const errorMiddleware = {
         name: 'error-thrower',
         before: async (context) => {
-          throw originalError;
+          // Only throw for the intended operation to avoid interfering with afterEach cleanup
+          if (context.operation === 'set') {
+            throw originalError;
+          }
+          return context;
         }
       };
 
@@ -368,12 +375,16 @@ describe('Middleware System', () => {
         .toBeRejectedWith(transformedError);
     });
 
-    // TODO: Fix error suppression handling
-    xit('should allow error handlers to suppress errors by returning undefined', async () => {
+  // TODO: Fix error suppression handling
+  it('should allow error handlers to suppress errors by returning undefined', async () => {
       const errorMiddleware = {
         name: 'error-thrower',
         before: async (context) => {
-          throw new Error('This error should be suppressed');
+          // Only throw for the intended operation to avoid interfering with afterEach cleanup
+          if (context.operation === 'set') {
+            throw new Error('This error should be suppressed');
+          }
+          return context;
         }
       };
 
@@ -390,15 +401,19 @@ describe('Middleware System', () => {
       expect(result).toBeNull(); // Should return null when error is suppressed
     });
 
-    // TODO: Fix after hook error handling
-    xit('should handle errors in after hooks', async () => {
+  // TODO: Fix after hook error handling
+  it('should handle errors in after hooks', async () => {
       let errorHandled = false;
       const afterError = new Error('After hook error');
 
       const errorMiddleware = {
         name: 'after-error-thrower',
         after: async (context, result) => {
-          throw afterError;
+          // Only throw for the intended operation to avoid interfering with afterEach cleanup
+          if (context.operation === 'set') {
+            throw afterError;
+          }
+          return result;
         }
       };
 
@@ -420,14 +435,18 @@ describe('Middleware System', () => {
     });
 
     // TODO: Fix error hook error handling
-    xit('should handle errors in error hooks themselves', async () => {
+  it('should handle errors in error hooks themselves', async () => {
       const originalError = new Error('Original error');
       const errorHookError = new Error('Error hook error');
 
       const errorMiddleware = {
         name: 'error-thrower',
         before: async (context) => {
-          throw originalError;
+          // Only throw for the intended operation to avoid interfering with afterEach cleanup
+          if (context.operation === 'set') {
+            throw originalError;
+          }
+          return context;
         }
       };
 
