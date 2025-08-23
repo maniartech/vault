@@ -41,6 +41,32 @@ function parseDuration(duration: string | number): number {
  */
 function expirationMiddleware(defaultTTL?: string | number): Middleware {
     const options: ExpirationOptions = {};
+    // Throttled background sweep controls
+    let lastSweepAt = 0;
+    let sweeping = false;
+    const SWEEP_INTERVAL_MS = 500; // minimum gap between sweeps
+
+    async function sweepExpired(vaultInstance: any) {
+        if (sweeping) return;
+        const now = Date.now();
+        if (now - lastSweepAt < SWEEP_INTERVAL_MS) return;
+        sweeping = true;
+        lastSweepAt = now;
+        try {
+            const keys: string[] = await vaultInstance.keys().catch(() => []);
+            for (const key of keys) {
+                try {
+                    const meta = await vaultInstance.getItemMeta(key).catch(() => null);
+                    const exp = (meta as any)?.expires;
+                    if (typeof exp === 'number' && !Number.isNaN(exp) && exp <= Date.now()) {
+                        await vaultInstance.removeItem(key).catch(() => void 0);
+                    }
+                } catch { /* ignore per-key errors */ }
+            }
+        } finally {
+            sweeping = false;
+        }
+    }
 
     if (defaultTTL !== undefined) {
         options.defaultTTL = parseDuration(defaultTTL);
@@ -54,8 +80,14 @@ function expirationMiddleware(defaultTTL?: string | number): Middleware {
                 const hadMeta = !!context.meta;
                 if (!context.meta) context.meta = {};
 
-                // Apply default TTL first if configured and no expiration exists
-                if (options.defaultTTL && !context.meta.ttl && !context.meta.expires) {
+                // Apply default TTL first if configured and no expiration exists.
+                // IMPORTANT: If the caller explicitly provided a `ttl` field (even null/undefined),
+                // we must NOT apply the default TTL. Only when `ttl` is entirely absent do we apply the default.
+                if (
+                    options.defaultTTL !== undefined &&
+                    !("ttl" in context.meta) &&
+                    !("expires" in context.meta)
+                ) {
                     context.meta.expires = Date.now() + options.defaultTTL;
                 }
 
@@ -91,6 +123,9 @@ function expirationMiddleware(defaultTTL?: string | number): Middleware {
                             const delta = meta.expires - now;
                             if (delta <= 0) {
                                 try { await vaultInstance.removeItem(context.key); } catch { /* ignore cleanup errors */ }
+                                // Opportunistically start a background sweep to clean up more expired items
+                                // without blocking the current request.
+                                sweepExpired(vaultInstance).catch(() => void 0);
                                 return null;
                             }
                             // If we are very close to expiry, wait for it to pass to make concurrent gets deterministic
@@ -101,11 +136,21 @@ function expirationMiddleware(defaultTTL?: string | number): Middleware {
                         }
                         if (meta?.expires && Date.now() > meta.expires) {
                             try { await vaultInstance.removeItem(context.key).catch(() => void 0); } catch { /* ignore cleanup errors */ }
+                            sweepExpired(vaultInstance).catch(() => void 0);
                             return null;
                         }
                     } catch {
                         // Ignore metadata check errors - return original result
                     }
+                }
+            }
+
+            // Opportunistic sweep before reporting counts or keys to avoid counting expired items.
+            if ((context.operation === 'length' || context.operation === 'keys')) {
+                const vaultInstance = (context as any).vaultInstance;
+                if (vaultInstance) {
+                    // Fire-and-forget; do not block the result.
+                    sweepExpired(vaultInstance).catch(() => void 0);
                 }
             }
             return result;

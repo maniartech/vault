@@ -76,6 +76,61 @@
 			"type": "shell",
 			"command": "yarn test --no-color",
 			"group": "build"
+		},
+		{
+			"label": "Build library with esbuild (ad-hoc)",
+			"type": "shell",
+			"command": "yarn build:vault",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run focused invalid TTL test",
+			"type": "shell",
+			"command": "yarn test --no-color --grep \"invalid TTL formats gracefully\"",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Rebuild after TTL default fix",
+			"type": "shell",
+			"command": "yarn build:vault",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run focused TTL null/undefined override test",
+			"type": "shell",
+			"command": "yarn test --no-color --grep \"override default TTL with explicit null/undefined\"",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run focused cleanup failure test",
+			"type": "shell",
+			"command": "yarn test --no-color --grep \"cleanup failures gracefully\"",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run focused corruption handling test",
+			"type": "shell",
+			"command": "yarn test --no-color --grep \"metadata corruption during expiration check\"",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run full test suite",
+			"type": "shell",
+			"command": "yarn test --no-color",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Rebuild after patches",
+			"type": "shell",
+			"command": "yarn build:vault",
+			"group": "build"
 		}
 	]
 }

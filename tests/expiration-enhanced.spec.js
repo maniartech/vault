@@ -96,8 +96,7 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
       }
     });
 
-    // TODO: Fix TTL validation - invalid TTL format handling
-    xit('should handle invalid TTL formats gracefully', async () => {
+    it('should handle invalid TTL formats gracefully', async () => {
       const invalidFormats = [
         '',
         ' ',
@@ -234,8 +233,7 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
       expect(meta.expires).toBeGreaterThan(Date.now() + (90 * 24 * 60 * 60 * 1000));
     });
 
-    // TODO: Fix TTL null/undefined handling - configuration issues
-    xit('should override default TTL with explicit null/undefined', async () => {
+    it('should override default TTL with explicit null/undefined', async () => {
       vault = new Vault('test-override-default');
       vault.use(expirationMiddleware('1d')); // 1 day default
 
@@ -336,8 +334,7 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
       });
     });
 
-    // TODO: Fix expiration cleanup error handling
-    xit('should handle cleanup failures gracefully', async () => {
+    it('should handle cleanup failures gracefully', async () => {
       await vault.setItem('cleanup-test', 'value', { ttl: 1 }); // 1ms
 
       // Wait for expiration
@@ -357,8 +354,7 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
       vault.removeItem = originalRemoveItem;
     });
 
-    // TODO: Fix metadata corruption handling during expiration
-    xit('should handle metadata corruption during expiration check', async () => {
+    it('should handle metadata corruption during expiration check', async () => {
       await vault.setItem('corruption-test', 'value', { ttl: '1h' });
 
       // Mock getItemMeta to return corrupted data
