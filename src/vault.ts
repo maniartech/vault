@@ -117,10 +117,12 @@ export default class Vault {
       return this
         .do(r, (store) => store.get(context.key as string) as IDBRequest<any>)
         .then((record) => {
-          // Stash meta for middleware after-hook to avoid an extra read
-          (context as any)._lastRecordMeta = record?.meta ?? null;
-          return (record == null ? null : (record as any).value as T | undefined);
+          // Store metadata in context for middleware access (race-condition-free)
+          (context as any)._recordMeta = record?.meta ?? null;
+          return record == null ? null : (record as any).value as T | undefined;
         });
+    }).then((finalResult) => {
+      return finalResult;
     });
   }
 

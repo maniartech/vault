@@ -298,7 +298,8 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
                 const vaultInstance = (context as any).vaultInstance;
                 if (vaultInstance) {
                     try {
-                        let meta: any = (context as any)._lastRecordMeta ?? null;
+                        // Access metadata from context to avoid race conditions
+                        let meta: any = (context as any)._recordMeta ?? null;
                         if (meta == null) {
                             meta = await vaultInstance.getItemMeta(context.key).catch(() => null);
                         }
