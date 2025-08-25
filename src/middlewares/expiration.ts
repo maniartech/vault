@@ -10,6 +10,12 @@ import { Middleware, MiddlewareContext } from '../types/middleware.js';
 export interface ExpirationOptions {
     /** Default TTL in milliseconds for all items when no expiration is specified */
     defaultTTL?: number;
+    /** Cleanup strategy: 'immediate', 'background', 'hybrid' */
+    cleanupMode?: 'immediate' | 'background' | 'hybrid';
+    /** Background worker interval in milliseconds (default: 200) */
+    workerInterval?: number;
+    /** Minimum time between on-demand sweeps in milliseconds (default: 300) */
+    throttleMs?: number;
 }
 
 /**
@@ -36,24 +42,194 @@ function parseDuration(duration: string | number): number {
 }
 
 /**
- * Creates expiration middleware with optional default TTL
- * @param defaultTTL - Default TTL as string ("1d", "1h") or milliseconds
+ * Creates expiration middleware with optional default TTL and cleanup strategy
+ * @param optionsOrDefaultTTL - Configuration object or default TTL for backward compatibility
  */
-function expirationMiddleware(defaultTTL?: string | number): Middleware {
+function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string | number): Middleware {
+    // Handle backward compatibility
     const options: ExpirationOptions = {};
-    // Throttled background sweep controls
+    if (typeof optionsOrDefaultTTL === 'object' && optionsOrDefaultTTL !== null) {
+        Object.assign(options, optionsOrDefaultTTL);
+    } else if (optionsOrDefaultTTL !== undefined) {
+        options.defaultTTL = parseDuration(optionsOrDefaultTTL);
+    }
+
+    // Set defaults
+    const cleanupMode = options.cleanupMode || 'background';
+    const workerInterval = options.workerInterval || 200;
+    const ONDEMAND_THROTTLE_MS = options.throttleMs || 300;
+
+    // Throttled on-demand sweep controls (fallback path when no Worker)
     let lastSweepAt = 0;
     let sweeping = false;
-    const SWEEP_INTERVAL_MS = 500; // minimum gap between sweeps
 
-    async function sweepExpired(vaultInstance: any) {
-        if (sweeping) return;
+    // Worker registry: one sweeper per storageName with health tracking
+    const GLOBAL_REGISTRY_KEY = '__vaultExpirationWorkerRegistry__';
+    const registry: Map<string, { worker: Worker, url: string, health: 'healthy' | 'degraded' | 'failed' }> =
+      (globalThis as any)[GLOBAL_REGISTRY_KEY] ?? ((globalThis as any)[GLOBAL_REGISTRY_KEY] = new Map());
+
+    // Create inlined worker script (no external file needed)
+    function createWorkerScript(): string {
+        return `
+        (function(){
+          const STORE = 'store';
+          let db = null;
+          let running = false;
+          let sweepScheduled = false;
+          let intervalMs = 200;
+          let intervalId = null;
+
+          self.addEventListener('message', (e) => {
+            const data = e.data || {};
+            if (data.type === 'init') {
+              intervalMs = Math.max(50, data.intervalMs || 200);
+              openDb(data.storageName).then(() => {
+                startLoop();
+                postMessage({ type: 'ready' });
+              }).catch(() => {
+                // stay silent; main thread will fallback if needed
+              });
+            } else if (data.type === 'sweep-now') {
+              if (!db) return;
+              if (!running) {
+                runSweep();
+              } else {
+                sweepScheduled = true; // queue another pass
+              }
+            } else if (data.type === 'dispose') {
+              stopLoop();
+              try { self.close(); } catch {}
+            }
+          });
+
+          function startLoop() {
+            stopLoop();
+            intervalId = setInterval(() => {
+              if (!db || running) return;
+              runSweep();
+            }, intervalMs);
+          }
+
+          function stopLoop() {
+            if (intervalId) { clearInterval(intervalId); intervalId = null; }
+          }
+
+          function openDb(name) {
+            return new Promise((resolve, reject) => {
+              const req = indexedDB.open(name, 1);
+              req.onupgradeneeded = (e) => {
+                // ensure object store exists
+                try { e.target.result.createObjectStore(STORE, { keyPath: 'key' }); } catch {}
+              };
+              req.onsuccess = () => { db = req.result; resolve(null); };
+              req.onerror = () => reject(req.error);
+            });
+          }
+
+          async function runSweep() {
+            running = true;
+            try {
+              await sweepOnce();
+            } catch {}
+            running = false;
+            if (sweepScheduled) { sweepScheduled = false; runSweep(); }
+          }
+
+          function sweepOnce() {
+            return new Promise((resolve) => {
+              if (!db) return resolve(null);
+              const tx = db.transaction(STORE, 'readwrite');
+              const store = tx.objectStore(STORE);
+              const req = store.openCursor();
+              const now = Date.now();
+
+              req.onsuccess = () => {
+                const cursor = req.result;
+                if (cursor) {
+                  const rec = cursor.value || {};
+                  const meta = rec.meta || null;
+                  const exp = meta && typeof meta.expires === 'number' ? meta.expires : NaN;
+                  if (!Number.isNaN(exp) && exp <= now) {
+                    // Delete expired record
+                    try { cursor.delete(); } catch {}
+                  }
+                  cursor.continue();
+                } else {
+                  resolve(null);
+                }
+              };
+              req.onerror = () => resolve(null);
+            });
+          }
+        })();
+        `;
+    }
+
+    function startWorkerFor(storageName: string): { worker: Worker, url: string, health: 'healthy' | 'degraded' | 'failed' } | null {
+        try {
+            if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined') {
+                return null;
+            }
+            if (registry.has(storageName)) return registry.get(storageName)!;
+
+            const script = createWorkerScript();
+            const blob = new Blob([script], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            const worker = new Worker(url);
+
+            // Add error handling for worker health tracking
+            worker.onerror = () => {
+                const entry = registry.get(storageName);
+                if (entry) {
+                    entry.health = 'failed';
+                }
+            };
+
+            worker.postMessage({ type: 'init', storageName, intervalMs: workerInterval });
+            const entry = { worker, url, health: 'healthy' as const };
+            registry.set(storageName, entry);
+            return entry;
+        } catch {
+            return null;
+        }
+    }
+
+    function nudgeWorker(vaultInstance: any) {
+        try {
+            const name = vaultInstance?.storageName;
+            if (!name) return false;
+            const entry = registry.get(name) || startWorkerFor(name);
+            if (!entry) return false;
+            entry.worker.postMessage({ type: 'sweep-now' });
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    function disposeWorkerFor(storageName: string) {
+        const entry = registry.get(storageName);
+        if (!entry) return;
+        try { entry.worker.postMessage({ type: 'dispose' }); } catch {}
+        try { entry.worker.terminate(); } catch {}
+        try { URL.revokeObjectURL(entry.url); } catch {}
+        registry.delete(storageName);
+    }
+
+    // Fallback on-demand sweep when no Worker is available
+    async function sweepExpired(vaultInstance: any, force: boolean = false) {
         const now = Date.now();
-        if (now - lastSweepAt < SWEEP_INTERVAL_MS) return;
+        if (!force) {
+            if (sweeping) return;
+            if (now - lastSweepAt < ONDEMAND_THROTTLE_MS) return;
+        } else if (sweeping) {
+            return;
+        }
         sweeping = true;
         lastSweepAt = now;
         try {
             const keys: string[] = await vaultInstance.keys().catch(() => []);
+            let processed = 0;
             for (const key of keys) {
                 try {
                     const meta = await vaultInstance.getItemMeta(key).catch(() => null);
@@ -62,48 +238,53 @@ function expirationMiddleware(defaultTTL?: string | number): Middleware {
                         await vaultInstance.removeItem(key).catch(() => void 0);
                     }
                 } catch { /* ignore per-key errors */ }
+                if (++processed % 100 === 0) {
+                    await Promise.resolve(); // yield
+                }
             }
         } finally {
             sweeping = false;
         }
     }
 
-    if (defaultTTL !== undefined) {
-        options.defaultTTL = parseDuration(defaultTTL);
+    if (options.defaultTTL !== undefined) {
+        // defaultTTL already parsed in options
+    } else if (typeof optionsOrDefaultTTL !== 'object' && optionsOrDefaultTTL !== undefined) {
+        options.defaultTTL = parseDuration(optionsOrDefaultTTL);
     }
 
     return {
         name: 'expiration',
 
-        before(context: MiddlewareContext): MiddlewareContext {
+        async before(context: MiddlewareContext): Promise<MiddlewareContext> {
+            // Start background worker only for background and hybrid modes
+            const vaultInstance = (context as any).vaultInstance;
+            if (vaultInstance && vaultInstance.storageName && (cleanupMode === 'background' || cleanupMode === 'hybrid')) {
+                startWorkerFor(vaultInstance.storageName);
+            }
+
             if (context.operation === 'set') {
                 const hadMeta = !!context.meta;
                 if (!context.meta) context.meta = {};
 
-                // Apply default TTL first if configured and no expiration exists.
-                // IMPORTANT: If the caller explicitly provided a `ttl` field (even null/undefined),
-                // we must NOT apply the default TTL. Only when `ttl` is entirely absent do we apply the default.
                 if (
                     options.defaultTTL !== undefined &&
-                    !("ttl" in context.meta) &&
-                    !("expires" in context.meta)
+                    !('ttl' in context.meta) &&
+                    !('expires' in context.meta)
                 ) {
                     context.meta.expires = Date.now() + options.defaultTTL;
                 }
 
-                // Per-item TTL overrides default (support 0)
                 if (context.meta.ttl !== undefined && context.meta.ttl !== null) {
                     const ttlMs = parseDuration(context.meta.ttl as any);
                     context.meta.expires = Date.now() + ttlMs;
                     delete (context.meta as any).ttl;
                 }
 
-                // Handle Date objects for expires
                 if (context.meta.expires instanceof Date) {
                     (context.meta as any).expires = (context.meta.expires as Date).getTime();
                 }
 
-                // If we created an empty meta and didn't set any fields, drop it to avoid storing {}
                 if (!hadMeta && context.meta && Object.keys(context.meta).length === 0) {
                     context.meta = null as any;
                 }
@@ -112,45 +293,57 @@ function expirationMiddleware(defaultTTL?: string | number): Middleware {
         },
 
         async after(context: MiddlewareContext, result: any): Promise<any> {
-            // Check expiration on get operations
+            // Expiration check on get: strategy-dependent cleanup behavior
             if (context.operation === 'get' && result !== null && context.key) {
                 const vaultInstance = (context as any).vaultInstance;
                 if (vaultInstance) {
                     try {
-                        let meta = await vaultInstance.getItemMeta(context.key).catch(() => null);
-                        if (meta?.expires) {
-                            const now = Date.now();
-                            const delta = meta.expires - now;
-                            if (delta <= 0) {
-                                try { await vaultInstance.removeItem(context.key); } catch { /* ignore cleanup errors */ }
-                                // Opportunistically start a background sweep to clean up more expired items
-                                // without blocking the current request.
-                                sweepExpired(vaultInstance).catch(() => void 0);
-                                return null;
-                            }
-                            // If we are very close to expiry, wait for it to pass to make concurrent gets deterministic
-                            if (delta <= 200) {
-                                await new Promise(r => setTimeout(r, Math.max(0, delta)));
-                                meta = await vaultInstance.getItemMeta(context.key).catch(() => null);
-                            }
+                        let meta: any = (context as any)._lastRecordMeta ?? null;
+                        if (meta == null) {
+                            meta = await vaultInstance.getItemMeta(context.key).catch(() => null);
                         }
-                        if (meta?.expires && Date.now() > meta.expires) {
-                            try { await vaultInstance.removeItem(context.key).catch(() => void 0); } catch { /* ignore cleanup errors */ }
-                            sweepExpired(vaultInstance).catch(() => void 0);
+                        const exp = (meta as any)?.expires;
+                        if (typeof exp === 'number' && !Number.isNaN(exp) && Date.now() >= exp) {
+                            // Always remove the expired item being accessed
+                            try { await vaultInstance.removeItem(context.key).catch(() => void 0); } catch {}
+
+                            // Strategy-specific cleanup for other expired items
+                            if (cleanupMode === 'immediate') {
+                                // Immediate mode: synchronous cleanup of ALL expired items
+                                await sweepExpired(vaultInstance, true);
+                            } else if (cleanupMode === 'background') {
+                                // Background mode: nudge worker for async cleanup
+                                if (!nudgeWorker(vaultInstance)) {
+                                    sweepExpired(vaultInstance).catch(() => void 0);
+                                }
+                            } else if (cleanupMode === 'hybrid') {
+                                // Hybrid mode: immediate for accessed item, background for others
+                                if (!nudgeWorker(vaultInstance)) {
+                                    sweepExpired(vaultInstance).catch(() => void 0);
+                                }
+                            }
+
                             return null;
                         }
                     } catch {
-                        // Ignore metadata check errors - return original result
+                        // ignore and return original result
                     }
                 }
             }
 
-            // Opportunistic sweep before reporting counts or keys to avoid counting expired items.
-            if ((context.operation === 'length' || context.operation === 'keys')) {
+            // For keys/length operations: strategy-dependent behavior
+            if (context.operation === 'length' || context.operation === 'keys') {
                 const vaultInstance = (context as any).vaultInstance;
                 if (vaultInstance) {
-                    // Fire-and-forget; do not block the result.
-                    sweepExpired(vaultInstance).catch(() => void 0);
+                    if (cleanupMode === 'immediate') {
+                        // Immediate mode: synchronous cleanup before returning results
+                        await sweepExpired(vaultInstance, true);
+                    } else {
+                        // Background/hybrid modes: nudge background sweep (non-blocking)
+                        if (!nudgeWorker(vaultInstance)) {
+                            sweepExpired(vaultInstance).catch(() => void 0);
+                        }
+                    }
                 }
             }
             return result;

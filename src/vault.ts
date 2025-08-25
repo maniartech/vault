@@ -116,7 +116,11 @@ export default class Vault {
       }
       return this
         .do(r, (store) => store.get(context.key as string) as IDBRequest<any>)
-        .then((record) => (record == null ? null : (record as any).value as T | undefined));
+        .then((record) => {
+          // Stash meta for middleware after-hook to avoid an extra read
+          (context as any)._lastRecordMeta = record?.meta ?? null;
+          return (record == null ? null : (record as any).value as T | undefined);
+        });
     });
   }
 
