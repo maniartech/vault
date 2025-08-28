@@ -342,9 +342,7 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
       });
     });
 
-    // TODO: Fix cleanup failure test - expected null value but cleanup didn't work properly
-    // expiration cleanup error handling
-    fit('should handle cleanup failures gracefully', async () => {
+    it('should handle cleanup failures gracefully', async () => {
       await vault.setItem('cleanup-test', 'value', { ttl: 1 }); // 1ms
 
       // Wait for expiration
@@ -394,9 +392,7 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
       vault.use(expirationMiddleware());
     });
 
-    // TODO: Fix performance timeout test - taking >7 seconds instead of <5 seconds expected
-    // TODO: Fix large number expiration test - timeout and performance issues
-    fit('should handle large number of items with different expiration times', async () => {
+    it('should handle large number of items with different expiration times', async () => {
       const startTime = performance.now();
 
       // Create 1000 items with various expiration times

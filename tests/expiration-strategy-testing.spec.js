@@ -95,8 +95,7 @@ describe('Expiration Middleware - Strategy Validation', () => {
       }));
     });
 
-    // TODO: Fix background worker cleanup test - expected null but value still present
-    xit('should clean up expired items via background worker', async () => {
+    it('should clean up expired items via background worker', async () => {
       await vault.setItem('bg-key', 'bg-value', { ttl: 50 });
 
       // Item should still exist immediately after expiration
