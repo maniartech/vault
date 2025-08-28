@@ -168,6 +168,50 @@ vault.use(expirationMiddleware({
 - High-throughput applications
 - Resource-constrained environments
 
+**Execution Flow:**
+```mermaid
+sequenceDiagram
+    participant UserApp as User Application
+    participant Vault
+    participant Middleware as Expiration Middleware
+    participant Worker as Background Worker
+    participant DB as IndexedDB
+    participant Registry as Global Worker Registry
+
+    Note over UserApp, DB: Initial State: Worker does not exist.
+
+    UserApp->>Vault: vault.setItem("key", "value", { ttl: '1h' })
+    Vault->>Middleware: onSetItem("key", ...)
+    Middleware->>Middleware: Check if worker exists for this vault
+    Note right of Middleware: Worker does not exist. Start one.
+    Middleware->>Worker: new Worker()
+    Middleware->>Registry: Register worker instance (state: 'initializing')
+    Worker-->>Middleware: Post message: { type: 'ready' }
+    Middleware->>Registry: Update worker state to 'healthy'
+    Middleware-->>Vault: Complete setItem operation
+    Vault-->>UserApp: Return Promise<void>
+
+    loop Every `workerInterval` (e.g., 200ms)
+        Worker->>Worker: Wake up for cleanup cycle
+        Worker->>DB: Scan for expired items
+        DB-->>Worker: Return list of expired keys
+        Worker->>DB: Delete expired items in batches
+        DB-->>Worker: Confirm deletion
+    end
+
+    Note over UserApp, DB: Later, when user requests an expired item...
+
+    UserApp->>Vault: vault.getItem("expiredKey")
+    Vault->>Middleware: onGetItem("expiredKey")
+    Middleware->>DB: Read metadata for "expiredKey"
+    DB-->>Middleware: Return { value: '...', meta: { expires: ... } }
+    Middleware->>Middleware: Check if item is expired
+    Note right of Middleware: Item is expired. Return null immediately.
+    Note right of Middleware: Deletion is left to the background worker's next cycle.
+    Middleware-->>Vault: Return null
+    Vault-->>UserApp: Return null
+```
+
 ### Strategy 3: Hybrid Approach (Recommended)
 
 **Concept:** Best of both worlds with configurable behavior
@@ -202,6 +246,44 @@ vault.use(expirationMiddleware({
 - Universal solution for all environments
 - Applications with mixed workload patterns
 - Development and production parity
+
+**Execution Flow:**
+```mermaid
+sequenceDiagram
+    participant UserApp as User Application
+    participant Vault
+    participant Middleware as Expiration Middleware
+    participant Worker as Background Worker
+    participant DB as IndexedDB
+
+    Note over UserApp, DB: Hybrid mode combines Immediate and Background flows.
+
+    UserApp->>Vault: vault.getItem("expiredKey")
+    Vault->>Middleware: onGetItem("expiredKey")
+    Middleware->>DB: Read metadata for "expiredKey"
+    DB-->>Middleware: Return { value: '...', meta: { expires: ... } }
+    Middleware->>Middleware: Check if item is expired
+    Note right of Middleware: Item is expired.
+
+    alt Immediate Cleanup Path (for accessed items)
+        Middleware->>Vault: vault.removeItem("expiredKey")
+        Vault->>DB: Delete "expiredKey"
+        DB-->>Vault: Confirm deletion
+        Vault-->>Middleware: Confirm removal
+        Middleware-->>Vault: Return null
+        Vault-->>UserApp: Return null
+    end
+
+    Note over UserApp, DB: Meanwhile, for unaccessed expired items...
+
+    loop Background Cleanup Path
+        Middleware->>Worker: (Worker is running periodically)
+        Worker->>DB: Scan for any other expired items
+        DB-->>Worker: Return list of expired keys
+        Worker->>DB: Delete expired items
+        DB-->>Worker: Confirm deletion
+    end
+```
 
 ### Strategy 4: Event-Driven Cleanup
 
@@ -246,7 +328,7 @@ const CLEANUP_TIERS = {
   AGGRESSIVE: 'aggressive',  // High frequency (50ms interval)
   BACKGROUND: 'background',  // Normal frequency (200ms interval)
   EMERGENCY: 'emergency'     // Memory pressure response
-};
+ };
 ```
 
 **Tier 1: Immediate**
