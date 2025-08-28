@@ -107,6 +107,30 @@ vault.use(expirationMiddleware({ cleanupMode: 'immediate' }));
 - Applications requiring strict consistency
 - Low-traffic applications
 
+**Execution Flow:**
+```mermaid
+sequenceDiagram
+    participant UserApp as User Application
+    participant Vault
+    participant Middleware as Expiration Middleware
+    participant DB as IndexedDB
+
+    UserApp->>Vault: vault.getItem("expiredKey")
+    Vault->>Middleware: onGetItem("expiredKey")
+    Middleware->>DB: Read metadata for "expiredKey"
+    DB-->>Middleware: Return { value: '...', meta: { expires: ... } }
+    Middleware->>Middleware: Check if item is expired (Date.now() > meta.expires)
+    Note right of Middleware: Item is expired.
+
+    Middleware->>Vault: vault.removeItem("expiredKey")
+    Vault->>DB: Delete "expiredKey"
+    DB-->>Vault: Confirm deletion
+    Vault-->>Middleware: Confirm removal
+
+    Middleware-->>Vault: Return null
+    Vault-->>UserApp: Return null
+```
+
 ### Strategy 2: Enhanced Background Worker
 
 **Concept:** Military-grade optimized background system
@@ -531,14 +555,14 @@ interface ExpirationOptions {
 
 Based on the challenges and solutions discovered while fixing and enhancing the expiration middleware, here are key best practices for developers to follow.
 
-### For Testing Expiration Logic
+### Best Practices for Testing the Expiration Middleware
 
-| Category | Dos | Don'ts |
-| :--- | :--- | :--- |
-| **Asynchronous Behavior** | **DO** use robust patterns for testing async operations. Create polling helpers (`waitForWorker`) to check for a specific state (e.g., worker is 'healthy') before making assertions. | **DON'T** rely on fixed timers (`setTimeout`) to wait for background tasks to complete. This is a primary source of flaky tests. |
-| **Test Isolation** | **DO** use `afterEach` hooks to rigorously clean up resources. Terminate workers, clear vault storage, and reset any global registries to prevent state from leaking between tests. | **DON'T** assume tests run in a clean environment. A failing test can leave resources behind that cause subsequent tests to fail unpredictably. |
-| **Strategy-Specific Tests** | **DO** tailor your tests to the `cleanupMode`. Test `'immediate'` mode for synchronous, predictable behavior and `'background'` mode with asynchronous patterns. | **DON'T** use a one-size-fits-all test for different cleanup strategies. An assertion that passes in immediate mode may fail in background mode due to timing. |
-| **Output Cleanliness** | **DO** keep test output clean and focused on results. | **DON'T** leave `console.log` statements in your test files. They add noise and can obscure important failure information in CI/CD logs. |
+| Category | Dos: Best Practices | Don'ts: Common Pitfalls | Why it Matters |
+| :--- | :--- | :--- | :--- |
+| **Asynchronous Behavior** | **DO** use robust, state-based patterns for async testing. Create polling helpers (`waitForWorker`) to check for a specific state (e.g., worker is 'healthy') before making assertions. | **DON'T** rely on fixed timers (`setTimeout`) to guess when a background task will complete. | **Reliability**: Polling for a state change makes tests deterministic and eliminates failures caused by timing variations in different test environments. This is the #1 cure for flaky tests. |
+| **Test Isolation** | **DO** use `afterEach` hooks to rigorously clean up all resources. This includes terminating workers, clearing vault storage, and resetting any global registries. | **DON'T** assume tests run in a perfectly clean environment. A single failing test can leave resources behind that cause a cascade of unrelated failures. | **Consistency**: Proper cleanup ensures that every test starts from a known, clean state, making failures easier to reproduce and debug. |
+| **Strategy-Specific Tests** | **DO** tailor your tests to the `cleanupMode`. Test `'immediate'` mode for synchronous, predictable behavior and `'background'` mode with asynchronous patterns like polling helpers. | **DON'T** use a one-size-fits-all test for different cleanup strategies. An assertion that passes in immediate mode may fail in background mode due to timing. | **Accuracy**: Testing each strategy according to its design ensures you are validating the intended behavior and not just creating tests that happen to pass due to timing coincidences. |
+| **Output Cleanliness** | **DO** keep test output clean and focused on results. Remove debugging statements like `console.log` before finalizing tests. | **DON'T** leave `console.log` statements in your test files. They create noise and can obscure important failure information in CI/CD logs. | **Clarity**: Clean logs make it faster to identify the root cause of a failure, especially in automated build environments where you might have thousands of lines of output. |
 
 ### Developer Guide: Using the Expiration Middleware Effectively
 
