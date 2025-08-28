@@ -182,9 +182,10 @@ sequenceDiagram
 
     UserApp->>Vault: vault.setItem("key", "value", { ttl: '1h' })
     Vault->>Middleware: onSetItem("key", ...)
-    Middleware->>Middleware: Check if worker exists for this vault
+    Middleware->>Middleware: Check if worker exists for this vault instance
     Note right of Middleware: Worker does not exist. Start one.
     Middleware->>Worker: new Worker()
+    Note right of Middleware: A single, dedicated worker is created per Vault instance.
     Middleware->>Registry: Register worker instance (state: 'initializing')
     Worker-->>Middleware: Post message: { type: 'ready' }
     Middleware->>Registry: Update worker state to 'healthy'
