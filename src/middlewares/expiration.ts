@@ -65,7 +65,7 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
 
     // Worker registry: one sweeper per storageName with health tracking
     const GLOBAL_REGISTRY_KEY = '__vaultExpirationWorkerRegistry__';
-    const registry: Map<string, { worker: Worker, url: string, health: 'healthy' | 'degraded' | 'failed' }> =
+    const registry: Map<string, { worker: Worker, url: string, health: 'initializing' | 'healthy' | 'degraded' | 'failed' }> =
       (globalThis as any)[GLOBAL_REGISTRY_KEY] ?? ((globalThis as any)[GLOBAL_REGISTRY_KEY] = new Map());
 
     // Create inlined worker script (no external file needed)
@@ -86,8 +86,8 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
               openDb(data.storageName).then(() => {
                 startLoop();
                 postMessage({ type: 'ready' });
-              }).catch(() => {
-                // stay silent; main thread will fallback if needed
+              }).catch((err) => {
+                postMessage({ type: 'error', error: err ? String(err) : 'Unknown DB error' });
               });
             } else if (data.type === 'sweep-now') {
               if (!db) return;
@@ -165,36 +165,52 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
         `;
     }
 
-    function startWorkerFor(storageName: string): { worker: Worker, url: string, health: 'healthy' | 'degraded' | 'failed' } | null {
-        try {
-            if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined') {
-                return null;
-            }
-            if (registry.has(storageName)) return registry.get(storageName)!;
-
-            const script = createWorkerScript();
-            const blob = new Blob([script], { type: 'application/javascript' });
-            const url = URL.createObjectURL(blob);
-            const worker = new Worker(url);
-
-            // Add error handling for worker health tracking
-            worker.onerror = () => {
-                const entry = registry.get(storageName);
-                if (entry) {
-                    entry.health = 'failed';
-                }
-            };
-
-            worker.postMessage({ type: 'init', storageName, intervalMs: workerInterval });
-            const entry = { worker, url, health: 'healthy' as const };
-            registry.set(storageName, entry);
-            return entry;
-        } catch {
+function startWorkerFor(storageName: string): { worker: Worker, url: string, health: 'initializing' | 'healthy' | 'degraded' | 'failed' } | null {
+    try {
+        if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined') {
             return null;
         }
-    }
+        if (registry.has(storageName)) return registry.get(storageName)!;
 
-    function nudgeWorker(vaultInstance: any) {
+        const script = createWorkerScript();
+        const blob = new Blob([script], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        const worker = new Worker(url);
+        const entry = { worker, url, health: 'initializing' as const };
+        registry.set(storageName, entry);
+
+        worker.onmessage = (e) => {
+            const currentEntry = registry.get(storageName);
+            if (!currentEntry) return;
+
+            if (e.data.type === 'ready') {
+                currentEntry.health = 'healthy';
+            } else if (e.data.type === 'error') {
+                currentEntry.health = 'failed';
+                console.error(`Worker for ${storageName} failed to initialize:`, e.data.error);
+            }
+        };
+
+        // Add error handling for worker health tracking
+        worker.onerror = (event) => {
+            console.error('Worker error:', event.message, 'at', event.filename, ':', event.lineno);
+            const currentEntry = registry.get(storageName);
+            if (currentEntry) {
+                currentEntry.health = 'failed';
+            }
+        };
+
+        worker.postMessage({ type: 'init', storageName, intervalMs: workerInterval });
+        return entry;
+    } catch (e) {
+        console.error("Failed to start worker:", e);
+        const entry = registry.get(storageName);
+        if (entry) {
+            entry.health = 'failed';
+        }
+        return null;
+    }
+}    function nudgeWorker(vaultInstance: any) {
         try {
             const name = vaultInstance?.storageName;
             if (!name) return false;
@@ -257,10 +273,16 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
         name: 'expiration',
 
         async before(context: MiddlewareContext): Promise<MiddlewareContext> {
-            // Start background worker only for background and hybrid modes
             const vaultInstance = (context as any).vaultInstance;
-            if (vaultInstance && vaultInstance.storageName && (cleanupMode === 'background' || cleanupMode === 'hybrid')) {
-                startWorkerFor(vaultInstance.storageName);
+            if (vaultInstance) {
+                // For immediate mode, sweep before length/keys operations
+                if (cleanupMode === 'immediate' && (context.operation === 'length' || context.operation === 'keys')) {
+                    await sweepExpired(vaultInstance, true);
+                }
+                // Start background worker only for background and hybrid modes
+                if (vaultInstance.storageName && (cleanupMode === 'background' || cleanupMode === 'hybrid')) {
+                    startWorkerFor(vaultInstance.storageName);
+                }
             }
 
             if (context.operation === 'set') {
@@ -334,8 +356,8 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
                 const vaultInstance = (context as any).vaultInstance;
                 if (vaultInstance) {
                     if (cleanupMode === 'immediate') {
-                        // Immediate mode: synchronous cleanup before returning results
-                        await sweepExpired(vaultInstance, true);
+                        // This is now handled in the before() hook to ensure cleanup
+                        // happens before the operation runs.
                     } else {
                         // Background/hybrid modes: nudge background sweep (non-blocking)
                         if (!nudgeWorker(vaultInstance)) {

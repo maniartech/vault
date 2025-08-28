@@ -5,12 +5,60 @@
 import Vault from '../dist/vault.js';
 import { expirationMiddleware } from '../dist/middlewares/expiration.js';
 
+async function waitForWorker(vaultInstance, health = 'healthy') {
+  const registry = globalThis.__vaultExpirationWorkerRegistry__;
+  if (!registry || !registry.has(vaultInstance.storageName)) {
+    // Give it a moment to appear
+    await new Promise(r => setTimeout(r, 100));
+    if (!registry || !registry.has(vaultInstance.storageName)) {
+      throw new Error(`Worker for ${vaultInstance.storageName} not found in registry.`);
+    }
+  }
+
+  const entry = registry.get(vaultInstance.storageName);
+
+  // If it's already in the desired state, return immediately.
+  if (entry.health === health) {
+    return;
+  }
+
+  // Otherwise, wait for the right state.
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timeout waiting for worker to become ${health}. Current state: ${entry.health}`));
+    }, 8000); // 8-second timeout
+
+    const checkHealth = () => {
+      if (entry.health === health) {
+        clearTimeout(timeout);
+        resolve();
+      } else if (entry.health === 'failed') {
+        clearTimeout(timeout);
+        reject(new Error('Worker entered a failed state.'));
+      } else {
+        setTimeout(checkHealth, 50); // Poll every 50ms
+      }
+    };
+
+    checkHealth();
+  });
+}
+
 describe('Expiration Middleware - Strategy Validation', () => {
   let vault;
 
   afterEach(async () => {
     if (vault) {
       await vault.clear();
+    }
+    // Clean up all workers after each test to ensure isolation
+    const registry = globalThis.__vaultExpirationWorkerRegistry__;
+    if (registry) {
+      for (const key of registry.keys()) {
+        const entry = registry.get(key);
+        try { entry.worker.terminate(); } catch {}
+        registry.delete(key);
+      }
     }
   });
 
@@ -55,8 +103,7 @@ describe('Expiration Middleware - Strategy Validation', () => {
       expect(await vault.length()).toBe(0);
     });
 
-    // TODO: Fix immediate cleanup test - expecting 0 expired items but finding 20 remaining
-    xit('should clean up all expired items on length() call', async () => {
+    it('should clean up all expired items on length() call', async () => {
       // Set items with different expiration times
       for (let i = 0; i < 20; i++) {
         await vault.setItem(`immediate-${i}`, `value-${i}`, { ttl: 10 + i }); // 10-29ms
@@ -133,9 +180,11 @@ describe('Expiration Middleware - Strategy Validation', () => {
       expect(result).toBeNull();
     });
 
-    // TODO: Fix worker registry test - expected 'healthy' but got 'failed' worker health
-    xit('should maintain worker registry correctly', async () => {
-      // Verify worker is registered
+    it('should maintain worker registry correctly', async () => {
+      await vault.setItem('trigger', 'value'); // Trigger middleware to start the worker
+      await waitForWorker(vault);
+
+      // Verify worker is registered and healthy
       const registry = globalThis.__vaultExpirationWorkerRegistry__;
       expect(registry).toBeDefined();
       expect(registry.has(vault.storageName)).toBe(true);
@@ -143,23 +192,30 @@ describe('Expiration Middleware - Strategy Validation', () => {
       const workerEntry = registry.get(vault.storageName);
       expect(workerEntry.worker).toBeInstanceOf(Worker);
       expect(workerEntry.health).toBe('healthy');
-    });
+    }, 10000);
 
-    // TODO: Fix multiple vaults worker test - expecting separate workers but getting shared
-    xit('should handle multiple vaults with separate workers', async () => {
+    it('should handle multiple vaults with separate workers', async () => {
       const vault2 = new Vault('test-background-strategy-2');
       vault2.use(expirationMiddleware({
         cleanupMode: 'background',
         workerInterval: 100
       }));
 
+      // Trigger worker initialization for both vaults
+      await vault.setItem('trigger1', 'value1');
+      await vault2.setItem('trigger2', 'value2');
+
+      await Promise.all([waitForWorker(vault), waitForWorker(vault2)]);
+
       const registry = globalThis.__vaultExpirationWorkerRegistry__;
       expect(registry.has(vault.storageName)).toBe(true);
       expect(registry.has(vault2.storageName)).toBe(true);
       expect(registry.get(vault.storageName).worker).not.toBe(registry.get(vault2.storageName).worker);
+      expect(registry.get(vault.storageName).health).toBe('healthy');
+      expect(registry.get(vault2.storageName).health).toBe('healthy');
 
       await vault2.clear();
-    });
+    }, 10000);
   });
 
   describe('Hybrid Cleanup Strategy', () => {

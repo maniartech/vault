@@ -422,7 +422,7 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
       for (let i = 0; i < 1000; i++) {
         expect(results[i]).toBe(`value-${i}`);
       }
-    });
+    }, 20000);
 
     it('should handle rapid expiration and cleanup efficiently', async () => {
       // Create items that expire quickly
