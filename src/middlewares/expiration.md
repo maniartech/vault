@@ -540,14 +540,14 @@ Based on the challenges and solutions discovered while fixing and enhancing the 
 | **Strategy-Specific Tests** | **DO** tailor your tests to the `cleanupMode`. Test `'immediate'` mode for synchronous, predictable behavior and `'background'` mode with asynchronous patterns. | **DON'T** use a one-size-fits-all test for different cleanup strategies. An assertion that passes in immediate mode may fail in background mode due to timing. |
 | **Output Cleanliness** | **DO** keep test output clean and focused on results. | **DON'T** leave `console.log` statements in your test files. They add noise and can obscure important failure information in CI/CD logs. |
 
-### For Using the Middleware in Applications
+### Developer Guide: Using the Expiration Middleware Effectively
 
-| Category | Dos | Don'ts |
-| :--- | :--- | :--- |
-| **Configuration** | **DO** choose your `cleanupMode` based on your application's needs. Use `'background'` or `'hybrid'` for performance-critical UIs; use `'immediate'` for scripts or environments needing strict consistency. | **DON'T** forget that the default mode is `'background'`. If you need synchronous cleanup, you must explicitly set the mode to `'immediate'`. |
-| **Data Consistency** | **DO** understand that with background cleanup, an item might be expired (and `getItem` returns `null`) but not yet removed from underlying storage. | **DON'T** rely on `length()` or `keys()` to be instantly consistent after an item expires in background mode. These operations will become consistent after the next cleanup cycle. |
-| **Error Handling** | **DO** build your application to be resilient to caching errors. The middleware is designed to fail gracefully, but your code should handle potential `null` returns gracefully. | **DON'T** assume the cache will always be available or that items will always exist. |
-| **Performance** | **DO** consider the performance trade-offs. `'immediate'` cleanup can add a small overhead to data access operations, while `'background'` cleanup uses a separate thread to minimize main thread impact. | **DON'T** use `'immediate'` mode in high-throughput scenarios where every millisecond of main thread performance counts. |
+| Category | Dos: Best Practices | Don'ts: Common Pitfalls | Why it Matters |
+| :--- | :--- | :--- | :--- |
+| **Choosing a Strategy** | **DO** select a `cleanupMode` that matches your use case. Use `'background'` for smooth UIs, `'immediate'` for predictable scripts. | **DON'T** stick with the default (`'background'`) if your application requires immediate data consistency after expiration. | Performance vs. Consistency: The right mode prevents UI jank and ensures data is as fresh as you need it to be. |
+| **Understanding Consistency** | **DO** remember that in `'background'` mode, `getItem` returning `null` for an expired item is instant, but the actual removal from storage is asynchronous. | **DON'T** rely on `length()` or `keys()` to be perfectly accurate immediately after an item expires in background mode. | Eventual Consistency: This model prioritizes performance. Your code should not assume that the underlying storage is immediately modified. |
+| **Writing Resilient Code** | **DO** code defensively. Always check for `null` when calling `getItem`, as items can expire at any time. | **DON'T** assume an item will always exist in the cache. Treat the cache as a volatile store. | Reliability: A resilient application gracefully handles expired or missing cache items without crashing or producing errors. |
+| **Managing Performance** | **DO** use the `'background'` or `'hybrid'` modes for applications where main thread performance is critical (e.g., complex UIs). | **DON'T** use `'immediate'` mode in high-frequency operations or tight loops, as it adds synchronous overhead to each call. | User Experience: Offloading cleanup to a background worker keeps the main thread free, resulting in a responsive and smooth application. |
 
 ## Future Considerations
 
