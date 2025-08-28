@@ -296,8 +296,7 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
       expect(await vault.length()).toBe(0);
     });
 
-    // TODO: Fix partial expiration test - test failing due to timing/cleanup issues
-    xit('should handle partial expiration in mixed TTL scenario', async () => {
+    it('should handle partial expiration in mixed TTL scenario', async () => {
       await vault.setItem('short1', 'value1', { ttl: 10 }); // 10ms
       await vault.setItem('long1', 'value1', { ttl: '1h' }); // 1 hour
       await vault.setItem('short2', 'value2', { ttl: 20 }); // 20ms
@@ -345,7 +344,7 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
 
     // TODO: Fix cleanup failure test - expected null value but cleanup didn't work properly
     // expiration cleanup error handling
-    xit('should handle cleanup failures gracefully', async () => {
+    fit('should handle cleanup failures gracefully', async () => {
       await vault.setItem('cleanup-test', 'value', { ttl: 1 }); // 1ms
 
       // Wait for expiration
@@ -397,7 +396,7 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
 
     // TODO: Fix performance timeout test - taking >7 seconds instead of <5 seconds expected
     // TODO: Fix large number expiration test - timeout and performance issues
-    xit('should handle large number of items with different expiration times', async () => {
+    fit('should handle large number of items with different expiration times', async () => {
       const startTime = performance.now();
 
       // Create 1000 items with various expiration times

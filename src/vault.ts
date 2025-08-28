@@ -1,8 +1,9 @@
 import proxy from "./proxy-handler.js";
 // Create a frozen, non-modifiable copy of the proxy handler for safe external use
 const __frozenProxyHandler = Object.freeze({ ...proxy });
-import { VaultItemMeta } from './types/vault.js';
+import { VaultItem, VaultItemMeta } from './types/vault.js';
 import { Middleware, MiddlewareContext } from './types/middleware.js';
+import { ValidationError } from './middlewares/validation.js';
 
 const r = 'readonly', rw = 'readwrite';
 const s = 'store';
@@ -83,11 +84,9 @@ export default class Vault {
       meta
     };
 
-  return this.executeWithMiddleware(context, async () => {
-      if (!context.key || typeof context.key !== 'string') {
-        throw new Error('Key must be a non-empty string');
-      }
-      return this.do(rw, (store) => store.put({
+    return this.executeWithMiddleware(context, async () => {
+      // The core operation now only performs the put, validation is centralized
+      return this.do(rw, (store: IDBObjectStore) => store.put({
         key: context.key as string,
         value: context.value as T,
         meta: (context.meta ?? null) as VaultItemMeta | null
@@ -110,19 +109,11 @@ export default class Vault {
       key
     };
 
-  return this.executeWithMiddleware(context, async () => {
-      if (!context.key || typeof context.key !== 'string') {
-        throw new Error('Key must be a non-empty string');
-      }
-      return this
-        .do(r, (store) => store.get(context.key as string) as IDBRequest<any>)
-        .then((record) => {
-          // Store metadata in context for middleware access (race-condition-free)
-          (context as any)._recordMeta = record?.meta ?? null;
-          return record == null ? null : (record as any).value as T | undefined;
-        });
-    }).then((finalResult) => {
-      return finalResult;
+    return this.executeWithMiddleware(context, async () => {
+      const record = await this.do<VaultItem<T>>(r, (store: IDBObjectStore) => store.get(context.key as string));
+      context.meta = record?.meta ?? null;
+      context.value = record == null ? null : record.value;
+      return record == null ? null : record.value;
     });
   }
 
@@ -141,10 +132,10 @@ export default class Vault {
     };
 
     return this.executeWithMiddleware(context, async () => {
-      if (!context.key || typeof context.key !== 'string') {
-        throw new Error('Key must be a non-empty string');
-      }
-      return this.do(rw, (store) => store.delete(context.key as string));
+      const record = await this.do<VaultItem>(r, (store: IDBObjectStore) => store.get(context.key as string));
+      context.meta = record?.meta ?? null;
+      context.value = record?.value ?? null;
+      return this.do(rw, (store: IDBObjectStore) => store.delete(context.key as string));
     });
   }
 
@@ -193,7 +184,7 @@ export default class Vault {
     };
 
     return this.executeWithMiddleware(context, async () => {
-      return this.do(rw, (store) => store.clear());
+      return this.do(rw, (store: IDBObjectStore) => store.clear());
     });
   }
 
@@ -204,13 +195,13 @@ export default class Vault {
   /**
    * Get all keys stored in the vault.
    */
-  public async keys(): Promise<string[]> {
+  public async keys(): Promise<IDBValidKey[]> {
     const context: MiddlewareContext = {
       operation: 'keys'
     };
 
     return this.executeWithMiddleware(context, async () => {
-      return this.do(r, (store) => store.getAllKeys() as IDBRequest<string[]>);
+      return this.do<IDBValidKey[]>(r, (store: IDBObjectStore) => store.getAllKeys());
     });
   }
 
@@ -227,7 +218,7 @@ export default class Vault {
     };
 
     return this.executeWithMiddleware(context, async () => {
-      return this.do(r, (store) => store.count() as IDBRequest<number>);
+      return this.do<number>(r, (store: IDBObjectStore) => store.count());
     });
   }
 
@@ -246,12 +237,10 @@ export default class Vault {
     };
 
     return this.executeWithMiddleware(context, async () => {
-      if (!context.key || typeof context.key !== 'string') {
-        throw new Error('Key must be a non-empty string');
-      }
-      return this
-        .do(r, (store) => store.get(context.key as string) as IDBRequest<any>)
-        .then((record) => (record?.meta ?? null));
+      const record = await this.do<VaultItem>(r, (store: IDBObjectStore) => store.get(context.key as string));
+      context.meta = record?.meta ?? null;
+      context.value = record?.value ?? null;
+      return record?.meta ?? null;
     });
   }
 
@@ -279,21 +268,44 @@ export default class Vault {
    */
   protected async executeWithMiddleware(context: MiddlewareContext, operation: () => Promise<any>): Promise<any> {
     let modifiedContext: MiddlewareContext = { ...context, vaultInstance: this };
-
     try {
-      // Run before hooks
-      for (const middleware of this.middlewares) {
-        if (middleware.before) {
-          modifiedContext = await middleware.before(modifiedContext);
+      // Centralized validation for all operations that require a key
+      if (['get', 'set', 'remove', 'getItemMeta'].includes(context.operation)) {
+        if (!context.key || typeof context.key !== 'string' || !context.key.trim()) {
+          throw new ValidationError('Key must be a non-empty string');
         }
       }
 
-    // IMPORTANT: propagate any modifications back to the original context
-    // so the core operation uses updated key/value/meta set by 'before' hooks
-    Object.assign(context, modifiedContext);
+      // For any operation with a key, fetch the previous state before any middleware runs
+      if (context.key) {
+        const existingRecord = await this.do<VaultItem>(r, (store: IDBObjectStore) => store.get(context.key as string));
+        modifiedContext.previousValue = existingRecord ? existingRecord.value : null;
+        modifiedContext.previousMeta = existingRecord ? existingRecord.meta : null;
+      }
+
+      // Run before hooks
+      for (const middleware of this.middlewares) {
+        if (middleware.before) {
+          const result = await middleware.before(modifiedContext);
+          if (result) {
+            modifiedContext = result;
+          }
+        }
+      }
+
+      // Propagate any modifications back to the original context
+      Object.assign(context, modifiedContext);
 
       // Execute the core operation
       let result = await operation();
+
+      // Copy context values set by the operation for 'after' hooks
+      if (context.value !== undefined) {
+        modifiedContext.value = context.value;
+      }
+      if (context.meta !== undefined) {
+        modifiedContext.meta = context.meta;
+      }
 
       // Run after hooks
       for (const middleware of this.middlewares) {
@@ -303,7 +315,7 @@ export default class Vault {
       }
 
       return result;
-  } catch (error) {
+    } catch (error) {
       let handledError = error as Error;
 
       // Run error hooks
@@ -313,8 +325,7 @@ export default class Vault {
           if (errorResult instanceof Error) {
             handledError = errorResult;
           } else if (errorResult === undefined) {
-            // If middleware returns undefined, it handled the error
-            return null;
+            return null; // Error was handled by middleware
           }
         }
       }
@@ -323,37 +334,55 @@ export default class Vault {
     }
   }
 
-  // Initialize the database and return a promise.
-  /** Initialize IndexedDB database lazily. */
-  protected async init(): Promise<void> {
+  /**
+   * Open the underlying database.
+   * @returns {Promise<IDBDatabase>} - The opened database.
+   */
+  protected async openDatabase(): Promise<IDBDatabase> {
+    if (this.db) return this.db;
+
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.storageName, 1);
-      request.onupgradeneeded = (e: any) => {
-    (e.target as IDBRequest).result.createObjectStore(s, { keyPath: 'key' });
+
+      request.onsuccess = (event) => {
+        this.db = (event.target as IDBOpenDBRequest).result;
+        if (this.db) {
+          resolve(this.db);
+        } else {
+          reject(new Error('Database connection is null.'));
+        }
       };
-      request.onsuccess = () => {
-        this.db = request.result;
-        resolve();
+
+      request.onerror = (event) => {
+        reject((event.target as IDBOpenDBRequest).error);
       };
-      request.onerror = (e) => {
-        reject(new Error(`Failed to open database: ${e}`));
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        db.createObjectStore(s, { keyPath: 'key' });
       };
     });
   }
 
-  // Execute a transaction and return a promise.
-  protected async do(operationType: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest): Promise<any> {
-    if (!this.db) await this.init();
-    const transaction = this.db!.transaction(s, operationType);
-    const store = transaction.objectStore(s);
-    const request = operation(store);
-
+  /**
+   * Perform a database operation.
+   * @param {string} mode - The transaction mode ('readonly' or 'readwrite').
+   * @param {Function} operation - The operation to perform with the transaction and store.
+   * @returns {Promise<any>} - The result of the operation.
+   */
+  protected async do<T>(mode: 'readonly' | 'readwrite', operation: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+    const db = await this.openDatabase();
     return new Promise((resolve, reject) => {
-      request.onsuccess = () => {
-        resolve(operationType === r ? (request as IDBRequest).result : undefined);
+      const transaction = db.transaction(s, mode);
+      const store = transaction.objectStore(s);
+      const request = operation(store);
+
+      request.onsuccess = (event) => {
+        resolve((event.target as IDBRequest<T>).result);
       };
-      request.onerror = () => {
-        reject(new Error(`Database operation failed: ${request.error?.message || 'Unknown error'}`));
+
+      request.onerror = (event) => {
+        reject((event.target as IDBRequest<T>).error);
       };
     });
   }

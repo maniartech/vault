@@ -298,11 +298,8 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
                 const vaultInstance = (context as any).vaultInstance;
                 if (vaultInstance) {
                     try {
-                        // Access metadata from context to avoid race conditions
-                        let meta: any = (context as any)._recordMeta ?? null;
-                        if (meta == null) {
-                            meta = await vaultInstance.getItemMeta(context.key).catch(() => null);
-                        }
+                        // Access metadata directly from context (new simplified approach)
+                        const meta = context.meta;
                         const exp = (meta as any)?.expires;
                         if (typeof exp === 'number' && !Number.isNaN(exp) && Date.now() >= exp) {
                             // Always remove the expired item being accessed

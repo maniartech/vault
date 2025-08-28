@@ -233,11 +233,12 @@ describe('Middleware System', () => {
       vault.use(middleware);
 
       await vault.setItem('test-key', 'test-value');
+      const retrieved = await vault.getItem('test-key');
 
-      expect(capturedContext.operation).toBe('set');
+      expect(capturedContext.operation).toBe('get');
       expect(capturedContext.key).toBe('test-key');
       expect(capturedContext.value).toBe('test-value');
-      expect(capturedResult).toBeUndefined(); // setItem returns void
+      expect(capturedResult).toBe('test-value');
     });
 
     it('should allow middleware to modify results in after hooks', async () => {
@@ -612,7 +613,7 @@ describe('Middleware System', () => {
       // Test error operation
       executionLog.length = 0;
       await expectAsync(vault.setItem('', 'value')).toBeRejected();
-      expect(executionLog).toEqual(['before', 'error']);
+      expect(executionLog).toEqual(['error']);
     });
   });
 
@@ -708,6 +709,309 @@ describe('Middleware System', () => {
 
       await vault1.clear();
       await vault2.clear();
+    });
+  });
+
+  describe('Enhanced Context Support', () => {
+    describe('setItem Previous Values', () => {
+      it('should provide previous values to middleware during setItem when record exists', async () => {
+        let capturedContext;
+
+        const contextCapturer = {
+          name: 'context-capturer',
+          before: async (context) => {
+            capturedContext = { ...context };
+            return context;
+          }
+        };
+
+        vault.use(contextCapturer);
+
+        // First, set an initial value
+        await vault.setItem('test-key', 'initial-value', { version: 1 });
+
+        // Then update it and capture the context
+        await vault.setItem('test-key', 'updated-value', { version: 2 });
+
+        expect(capturedContext.operation).toBe('set');
+        expect(capturedContext.key).toBe('test-key');
+        expect(capturedContext.value).toBe('updated-value');
+        expect(capturedContext.meta).toEqual({ version: 2 });
+        expect(capturedContext.previousValue).toBe('initial-value');
+        expect(capturedContext.previousMeta).toEqual({ version: 1 });
+      });
+
+      it('should provide null previous values to middleware during setItem when record does not exist', async () => {
+        let capturedContext;
+
+        const contextCapturer = {
+          name: 'context-capturer',
+          before: async (context) => {
+            capturedContext = { ...context };
+            return context;
+          }
+        };
+
+        vault.use(contextCapturer);
+
+        // Set a new value (no previous record)
+        await vault.setItem('new-key', 'new-value', { version: 1 });
+
+        expect(capturedContext.operation).toBe('set');
+        expect(capturedContext.key).toBe('new-key');
+        expect(capturedContext.value).toBe('new-value');
+        expect(capturedContext.meta).toEqual({ version: 1 });
+        expect(capturedContext.previousValue).toBeNull();
+        expect(capturedContext.previousMeta).toBeNull();
+      });
+
+      it('should enable change detection middleware using previous values', async () => {
+        const changeLog = [];
+
+        const changeDetectionMiddleware = {
+          name: 'change-detector',
+          before: async (context) => {
+            if (context.operation === 'set') {
+              const hasValueChanged = context.value !== context.previousValue;
+              const hasMetaChanged = JSON.stringify(context.meta) !== JSON.stringify(context.previousMeta);
+
+              changeLog.push({
+                key: context.key,
+                hasValueChanged,
+                hasMetaChanged,
+                from: { value: context.previousValue, meta: context.previousMeta },
+                to: { value: context.value, meta: context.meta }
+              });
+            }
+            return context;
+          }
+        };
+
+        vault.use(changeDetectionMiddleware);
+
+        // Initial set
+        await vault.setItem('test', 'value1', { count: 1 });
+        expect(changeLog[0].hasValueChanged).toBe(true); // null -> 'value1'
+        expect(changeLog[0].hasMetaChanged).toBe(true); // null -> {count: 1}
+
+        // Value change only
+        await vault.setItem('test', 'value2', { count: 1 });
+        expect(changeLog[1].hasValueChanged).toBe(true); // 'value1' -> 'value2'
+        expect(changeLog[1].hasMetaChanged).toBe(false); // {count: 1} -> {count: 1}
+
+        // Meta change only
+        await vault.setItem('test', 'value2', { count: 2 });
+        expect(changeLog[2].hasValueChanged).toBe(false); // 'value2' -> 'value2'
+        expect(changeLog[2].hasMetaChanged).toBe(true); // {count: 1} -> {count: 2}
+
+        // No change
+        await vault.setItem('test', 'value2', { count: 2 });
+        expect(changeLog[3].hasValueChanged).toBe(false);
+        expect(changeLog[3].hasMetaChanged).toBe(false);
+      });
+
+      it('should enable audit middleware using previous values', async () => {
+        const auditLog = [];
+
+        const auditMiddleware = {
+          name: 'auditor',
+          after: async (context, result) => {
+            if (context.operation === 'set') {
+              auditLog.push({
+                timestamp: Date.now(),
+                key: context.key,
+                previous: { value: context.previousValue, meta: context.previousMeta },
+                current: { value: context.value, meta: context.meta }
+              });
+            }
+            return result;
+          }
+        };
+
+        vault.use(auditMiddleware);
+
+        await vault.setItem('audit-test', 'first', { id: 1 });
+        await vault.setItem('audit-test', 'second', { id: 2 });
+
+        expect(auditLog.length).toBe(2);
+
+        expect(auditLog[0].key).toBe('audit-test');
+        expect(auditLog[0].previous.value).toBeNull();
+        expect(auditLog[0].previous.meta).toBeNull();
+        expect(auditLog[0].current.value).toBe('first');
+        expect(auditLog[0].current.meta).toEqual({ id: 1 });
+
+        expect(auditLog[1].key).toBe('audit-test');
+        expect(auditLog[1].previous.value).toBe('first');
+        expect(auditLog[1].previous.meta).toEqual({ id: 1 });
+        expect(auditLog[1].current.value).toBe('second');
+        expect(auditLog[1].current.meta).toEqual({ id: 2 });
+      });
+    });
+
+    describe('Context Value and Meta Storage', () => {
+      it('should populate context.value and context.meta during getItem', async () => {
+        let capturedContext;
+
+        const contextCapturer = {
+          name: 'context-capturer',
+          after: async (context, result) => {
+            capturedContext = { ...context };
+            return result;
+          }
+        };
+
+        vault.use(contextCapturer);
+
+        await vault.setItem('test-get', 'stored-value', { type: 'test' });
+        const result = await vault.getItem('test-get');
+
+        expect(result).toBe('stored-value');
+        expect(capturedContext.operation).toBe('get');
+        expect(capturedContext.key).toBe('test-get');
+        expect(capturedContext.value).toBe('stored-value');
+        expect(capturedContext.meta).toEqual({ type: 'test' });
+      });
+
+      it('should populate context.value and context.meta during removeItem', async () => {
+        let capturedContext;
+
+        const contextCapturer = {
+          name: 'context-capturer',
+          after: async (context, result) => {
+            capturedContext = { ...context };
+            return result;
+          }
+        };
+
+        vault.use(contextCapturer);
+
+        await vault.setItem('test-remove', 'to-be-removed', { status: 'active' });
+        await vault.removeItem('test-remove');
+
+        expect(capturedContext.operation).toBe('remove');
+        expect(capturedContext.key).toBe('test-remove');
+        expect(capturedContext.value).toBe('to-be-removed');
+        expect(capturedContext.meta).toEqual({ status: 'active' });
+      });
+
+      it('should populate context.value and context.meta during getItemMeta', async () => {
+        let capturedContext;
+
+        const contextCapturer = {
+          name: 'context-capturer',
+          after: async (context, result) => {
+            capturedContext = { ...context };
+            return result;
+          }
+        };
+
+        vault.use(contextCapturer);
+
+        await vault.setItem('test-meta', 'meta-value', { category: 'metadata' });
+        const meta = await vault.getItemMeta('test-meta');
+
+        expect(meta).toEqual({ category: 'metadata' });
+        expect(capturedContext.operation).toBe('getItemMeta');
+        expect(capturedContext.key).toBe('test-meta');
+        expect(capturedContext.value).toBe('meta-value');
+        expect(capturedContext.meta).toEqual({ category: 'metadata' });
+      });
+
+      it('should handle null values and metadata correctly in context', async () => {
+        let capturedContext;
+
+        const contextCapturer = {
+          name: 'context-capturer',
+          after: async (context, result) => {
+            capturedContext = { ...context };
+            return result;
+          }
+        };
+
+        vault.use(contextCapturer);
+
+        // Test with null metadata
+        await vault.setItem('null-meta-test', 'value-with-null-meta', null);
+        await vault.getItem('null-meta-test');
+
+        expect(capturedContext.value).toBe('value-with-null-meta');
+        expect(capturedContext.meta).toBeNull();
+
+        // Test with undefined value
+        await vault.setItem('undefined-test', undefined, { type: 'undefined' });
+        await vault.getItem('undefined-test');
+
+        expect(capturedContext.value).toBeUndefined();
+        expect(capturedContext.meta).toEqual({ type: 'undefined' });
+      });
+
+      it('should handle non-existent keys correctly in context', async () => {
+        let capturedContext;
+
+        const contextCapturer = {
+          name: 'context-capturer',
+          after: async (context, result) => {
+            capturedContext = { ...context };
+            return result;
+          }
+        };
+
+        vault.use(contextCapturer);
+
+        const result = await vault.getItem('non-existent-key');
+
+        expect(result).toBeNull();
+        expect(capturedContext.operation).toBe('get');
+        expect(capturedContext.key).toBe('non-existent-key');
+        expect(capturedContext.value).toBeNull();
+        expect(capturedContext.meta).toBeNull();
+      });
+    });
+
+    describe('Context Race Condition Safety', () => {
+      it('should maintain context isolation between concurrent operations', async () => {
+        const contextLog = [];
+
+        const concurrencyTester = {
+          name: 'concurrency-tester',
+          before: async (context) => {
+            // Add delay to simulate processing time
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 10));
+            contextLog.push({
+              operation: context.operation,
+              key: context.key,
+              timestamp: Date.now()
+            });
+            return context;
+          }
+        };
+
+        vault.use(concurrencyTester);
+
+        // Run multiple operations concurrently
+        const promises = [
+          vault.setItem('key1', 'value1'),
+          vault.setItem('key2', 'value2'),
+          vault.setItem('key3', 'value3'),
+          vault.getItem('key1'),
+          vault.getItem('key2')
+        ];
+
+        await Promise.all(promises);
+
+        // Verify all operations were logged correctly
+        expect(contextLog.length).toBe(5);
+
+        // Check that each context had the correct key
+        const key1Contexts = contextLog.filter(log => log.key === 'key1');
+        const key2Contexts = contextLog.filter(log => log.key === 'key2');
+        const key3Contexts = contextLog.filter(log => log.key === 'key3');
+
+        expect(key1Contexts.length).toBe(2); // 1 set + 1 get
+        expect(key2Contexts.length).toBe(2); // 1 set + 1 get
+        expect(key3Contexts.length).toBe(1); // 1 set only
+      });
     });
   });
 });

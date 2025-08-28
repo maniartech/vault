@@ -33,10 +33,6 @@ function validationMiddleware(...validators: CustomValidator[]): Middleware {
           context.operation === 'remove' ||
           context.operation === 'getItemMeta') {
 
-        // Key must be a string with at least one non-whitespace character
-        if (typeof context.key !== 'string' || context.key.trim().length === 0) {
-          throw new ValidationError('Key must be a non-empty string');
-        }
       }
 
       // Validate metadata for set operations
