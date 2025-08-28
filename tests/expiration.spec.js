@@ -209,8 +209,7 @@ describe('Expiration Middleware', () => {
     });
 
     describe('Integration Tests', () => {
-        // TODO: Fix multiple expiration times test - timing and cleanup issues
-        xit('should work with multiple items having different expiration times', async () => {
+        it('should work with multiple items having different expiration times', async () => {
             vault = new Vault('test-multiple-items');
             vault.use(expirationMiddleware());
 
@@ -226,8 +225,7 @@ describe('Expiration Middleware', () => {
             expect(await vault.getItem('long')).toBe('value2');
         });
 
-        // TODO: Fix default TTL mixed test - default TTL with mixed per-item expiration handling
-        xit('should work with default TTL and mixed per-item expiration', async () => {
+        it('should work with default TTL and mixed per-item expiration', async () => {
             vault = new Vault('test-mixed-expiration');
             vault.use(expirationMiddleware(50)); // 50ms default
 
