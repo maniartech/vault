@@ -527,6 +527,28 @@ interface ExpirationOptions {
 - **Implementation:** Worker health tracking and metrics collection
 - **Benefits:** Early problem detection and optimization opportunities
 
+## Best Practices and Lessons Learned: Dos and Don'ts
+
+Based on the challenges and solutions discovered while fixing and enhancing the expiration middleware, here are key best practices for developers to follow.
+
+### For Testing Expiration Logic
+
+| Category | Dos | Don'ts |
+| :--- | :--- | :--- |
+| **Asynchronous Behavior** | **DO** use robust patterns for testing async operations. Create polling helpers (`waitForWorker`) to check for a specific state (e.g., worker is 'healthy') before making assertions. | **DON'T** rely on fixed timers (`setTimeout`) to wait for background tasks to complete. This is a primary source of flaky tests. |
+| **Test Isolation** | **DO** use `afterEach` hooks to rigorously clean up resources. Terminate workers, clear vault storage, and reset any global registries to prevent state from leaking between tests. | **DON'T** assume tests run in a clean environment. A failing test can leave resources behind that cause subsequent tests to fail unpredictably. |
+| **Strategy-Specific Tests** | **DO** tailor your tests to the `cleanupMode`. Test `'immediate'` mode for synchronous, predictable behavior and `'background'` mode with asynchronous patterns. | **DON'T** use a one-size-fits-all test for different cleanup strategies. An assertion that passes in immediate mode may fail in background mode due to timing. |
+| **Output Cleanliness** | **DO** keep test output clean and focused on results. | **DON'T** leave `console.log` statements in your test files. They add noise and can obscure important failure information in CI/CD logs. |
+
+### For Using the Middleware in Applications
+
+| Category | Dos | Don'ts |
+| :--- | :--- | :--- |
+| **Configuration** | **DO** choose your `cleanupMode` based on your application's needs. Use `'background'` or `'hybrid'` for performance-critical UIs; use `'immediate'` for scripts or environments needing strict consistency. | **DON'T** forget that the default mode is `'background'`. If you need synchronous cleanup, you must explicitly set the mode to `'immediate'`. |
+| **Data Consistency** | **DO** understand that with background cleanup, an item might be expired (and `getItem` returns `null`) but not yet removed from underlying storage. | **DON'T** rely on `length()` or `keys()` to be instantly consistent after an item expires in background mode. These operations will become consistent after the next cleanup cycle. |
+| **Error Handling** | **DO** build your application to be resilient to caching errors. The middleware is designed to fail gracefully, but your code should handle potential `null` returns gracefully. | **DON'T** assume the cache will always be available or that items will always exist. |
+| **Performance** | **DO** consider the performance trade-offs. `'immediate'` cleanup can add a small overhead to data access operations, while `'background'` cleanup uses a separate thread to minimize main thread impact. | **DON'T** use `'immediate'` mode in high-throughput scenarios where every millisecond of main thread performance counts. |
+
 ## Future Considerations
 
 ### 1. Machine Learning Integration
