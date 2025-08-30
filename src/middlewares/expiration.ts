@@ -10,8 +10,8 @@ import { Middleware, MiddlewareContext } from '../types/middleware.js';
 export interface ExpirationOptions {
     /** Default TTL in milliseconds for all items when no expiration is specified */
     defaultTTL?: number;
-    /** Cleanup strategy: 'immediate', 'background', 'hybrid' */
-    cleanupMode?: 'immediate' | 'background' | 'hybrid';
+    /** Cleanup strategy: 'proactive', 'immediate', 'background', 'hybrid' */
+    cleanupMode?: 'proactive' | 'immediate' | 'background' | 'hybrid';
     /** Background worker interval in milliseconds (default: 200) */
     workerInterval?: number;
     /** Minimum time between on-demand sweeps in milliseconds (default: 300) */
@@ -55,7 +55,7 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
     }
 
     // Set defaults
-    const cleanupMode = options.cleanupMode || 'background';
+    const cleanupMode = options.cleanupMode || 'proactive';
     const workerInterval = options.workerInterval || 200;
     const ONDEMAND_THROTTLE_MS = options.throttleMs || 300;
 
@@ -74,51 +74,29 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
         (function(){
           const STORE = 'store';
           let db = null;
-          let running = false;
-          let sweepScheduled = false;
-          let intervalMs = 200;
-          let intervalId = null;
+          let sweepTimeoutId = null;
 
           self.addEventListener('message', (e) => {
             const data = e.data || {};
             if (data.type === 'init') {
-              intervalMs = Math.max(50, data.intervalMs || 200);
               openDb(data.storageName).then(() => {
-                startLoop();
+                rescheduleSweep();
                 postMessage({ type: 'ready' });
               }).catch((err) => {
                 postMessage({ type: 'error', error: err ? String(err) : 'Unknown DB error' });
               });
-            } else if (data.type === 'sweep-now') {
-              if (!db) return;
-              if (!running) {
-                runSweep();
-              } else {
-                sweepScheduled = true; // queue another pass
-              }
+            } else if (data.type === 'reschedule') {
+              rescheduleSweep();
             } else if (data.type === 'dispose') {
-              stopLoop();
+              if (sweepTimeoutId) clearTimeout(sweepTimeoutId);
               try { self.close(); } catch {}
             }
           });
-
-          function startLoop() {
-            stopLoop();
-            intervalId = setInterval(() => {
-              if (!db || running) return;
-              runSweep();
-            }, intervalMs);
-          }
-
-          function stopLoop() {
-            if (intervalId) { clearInterval(intervalId); intervalId = null; }
-          }
 
           function openDb(name) {
             return new Promise((resolve, reject) => {
               const req = indexedDB.open(name, 1);
               req.onupgradeneeded = (e) => {
-                // ensure object store exists
                 try { e.target.result.createObjectStore(STORE, { keyPath: 'key' }); } catch {}
               };
               req.onsuccess = () => { db = req.result; resolve(null); };
@@ -126,13 +104,26 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
             });
           }
 
+          function rescheduleSweep() {
+            if (sweepTimeoutId) clearTimeout(sweepTimeoutId);
+
+            findNextExpiration().then(nextExpiration => {
+              if (nextExpiration === null) return; // No expiring items
+
+              const now = Date.now();
+              const delay = Math.max(0, nextExpiration - now);
+
+              // Set a reasonable max delay to handle items far in the future
+              // and to allow for periodic checks even if no TTLs are set.
+              const effectiveDelay = Math.min(delay, 2147483647); // Max 32-bit signed int
+
+              sweepTimeoutId = setTimeout(runSweep, effectiveDelay);
+            });
+          }
+
           async function runSweep() {
-            running = true;
-            try {
-              await sweepOnce();
-            } catch {}
-            running = false;
-            if (sweepScheduled) { sweepScheduled = false; runSweep(); }
+            await sweepOnce();
+            rescheduleSweep(); // After sweeping, find the next item to schedule
           }
 
           function sweepOnce() {
@@ -150,12 +141,38 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
                   const meta = rec.meta || null;
                   const exp = meta && typeof meta.expires === 'number' ? meta.expires : NaN;
                   if (!Number.isNaN(exp) && exp <= now) {
-                    // Delete expired record
                     try { cursor.delete(); } catch {}
                   }
                   cursor.continue();
                 } else {
                   resolve(null);
+                }
+              };
+              req.onerror = () => resolve(null);
+            });
+          }
+
+          function findNextExpiration() {
+            return new Promise((resolve) => {
+              if (!db) return resolve(null);
+              let nextExpiration = null;
+              const tx = db.transaction(STORE, 'readonly');
+              const store = tx.objectStore(STORE);
+              const req = store.openCursor();
+
+              req.onsuccess = () => {
+                const cursor = req.result;
+                if (cursor) {
+                  const meta = cursor.value?.meta;
+                  const exp = meta?.expires;
+                  if (typeof exp === 'number' && !Number.isNaN(exp) && exp > Date.now()) {
+                    if (nextExpiration === null || exp < nextExpiration) {
+                      nextExpiration = exp;
+                    }
+                  }
+                  cursor.continue();
+                } else {
+                  resolve(nextExpiration);
                 }
               };
               req.onerror = () => resolve(null);
@@ -214,9 +231,13 @@ function startWorkerFor(storageName: string): { worker: Worker, url: string, hea
         try {
             const name = vaultInstance?.storageName;
             if (!name) return false;
-            const entry = registry.get(name) || startWorkerFor(name);
+            const entry = registry.get(name); // Do not auto-start here anymore
             if (!entry) return false;
-            entry.worker.postMessage({ type: 'sweep-now' });
+
+            // For proactive mode, we tell it to re-evaluate its schedule.
+            // For older modes, we tell it to sweep now.
+            const messageType = (cleanupMode === 'proactive') ? 'reschedule' : 'sweep-now';
+            entry.worker.postMessage({ type: messageType });
             return true;
         } catch {
             return false;
@@ -272,6 +293,12 @@ function startWorkerFor(storageName: string): { worker: Worker, url: string, hea
     return {
         name: 'expiration',
 
+        onRegister(vaultInstance: any) {
+            if (vaultInstance?.storageName && (cleanupMode === 'proactive' || cleanupMode === 'background' || cleanupMode === 'hybrid')) {
+                startWorkerFor(vaultInstance.storageName);
+            }
+        },
+
         async before(context: MiddlewareContext): Promise<MiddlewareContext> {
             const vaultInstance = (context as any).vaultInstance;
             if (vaultInstance) {
@@ -279,10 +306,7 @@ function startWorkerFor(storageName: string): { worker: Worker, url: string, hea
                 if (cleanupMode === 'immediate' && (context.operation === 'length' || context.operation === 'keys')) {
                     await sweepExpired(vaultInstance, true);
                 }
-                // Start background worker only for background and hybrid modes
-                if (vaultInstance.storageName && (cleanupMode === 'background' || cleanupMode === 'hybrid')) {
-                    startWorkerFor(vaultInstance.storageName);
-                }
+                // Worker is now started onRegister for proactive/background/hybrid modes
             }
 
             if (context.operation === 'set') {
@@ -315,9 +339,15 @@ function startWorkerFor(storageName: string): { worker: Worker, url: string, hea
         },
 
         async after(context: MiddlewareContext, result: any): Promise<any> {
+            const vaultInstance = (context as any).vaultInstance;
+
+            // Nudge the worker on any data-mutating operation for proactive rescheduling
+            if (cleanupMode === 'proactive' && ['set', 'remove', 'clear'].includes(context.operation)) {
+                nudgeWorker(vaultInstance);
+            }
+
             // Expiration check on get: strategy-dependent cleanup behavior
             if (context.operation === 'get' && result !== null && context.key) {
-                const vaultInstance = (context as any).vaultInstance;
                 if (vaultInstance) {
                     try {
                         // Access metadata directly from context (new simplified approach)
@@ -331,13 +361,8 @@ function startWorkerFor(storageName: string): { worker: Worker, url: string, hea
                             if (cleanupMode === 'immediate') {
                                 // Immediate mode: synchronous cleanup of ALL expired items
                                 await sweepExpired(vaultInstance, true);
-                            } else if (cleanupMode === 'background') {
-                                // Background mode: nudge worker for async cleanup
-                                if (!nudgeWorker(vaultInstance)) {
-                                    sweepExpired(vaultInstance).catch(() => void 0);
-                                }
-                            } else if (cleanupMode === 'hybrid') {
-                                // Hybrid mode: immediate for accessed item, background for others
+                            } else if (cleanupMode === 'background' || cleanupMode === 'hybrid' || cleanupMode === 'proactive') {
+                                // Background modes: nudge worker for async cleanup
                                 if (!nudgeWorker(vaultInstance)) {
                                     sweepExpired(vaultInstance).catch(() => void 0);
                                 }
@@ -353,13 +378,12 @@ function startWorkerFor(storageName: string): { worker: Worker, url: string, hea
 
             // For keys/length operations: strategy-dependent behavior
             if (context.operation === 'length' || context.operation === 'keys') {
-                const vaultInstance = (context as any).vaultInstance;
                 if (vaultInstance) {
                     if (cleanupMode === 'immediate') {
                         // This is now handled in the before() hook to ensure cleanup
                         // happens before the operation runs.
                     } else {
-                        // Background/hybrid modes: nudge background sweep (non-blocking)
+                        // Background/hybrid/proactive modes: nudge background sweep (non-blocking)
                         if (!nudgeWorker(vaultInstance)) {
                             sweepExpired(vaultInstance).catch(() => void 0);
                         }

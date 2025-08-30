@@ -213,7 +213,7 @@ sequenceDiagram
     Vault-->>UserApp: Return null
 ```
 
-### Strategy 3: Hybrid Approach (Recommended)
+### Strategy 3: Hybrid Approach (Legacy)
 
 **Concept:** Best of both worlds with configurable behavior
 ```typescript
@@ -286,7 +286,73 @@ sequenceDiagram
     end
 ```
 
-### Strategy 4: Event-Driven Cleanup
+### Strategy 4: Proactive, Event-Driven Scheduler (Recommended)
+
+**Concept:** An intelligent, highly efficient background worker that eliminates polling. It wakes up precisely when the next item is due to expire, or when explicitly notified of a change. This is the most advanced and recommended strategy.
+
+```typescript
+// Proactive mode: The new default and most efficient strategy
+vault.use(expirationMiddleware({
+  cleanupMode: 'proactive'
+}));
+```
+
+**Features:**
+- **Zero Polling:** The worker does not use `setInterval`. It calculates the exact time of the next expiration and uses a single `setTimeout` to sleep until that moment.
+- **Instantaneous Startup:** The worker is initialized as soon as the middleware is registered with a vault instance (`onRegister` hook), ensuring it's ready immediately.
+- **Event-Driven Re-scheduling:** Any data mutation (`setItem`, `removeItem`, `clear`) on the main thread instantly notifies the worker via `postMessage`. The worker then wakes up, re-calculates the next expiration time, and schedules a new, precise `setTimeout`.
+- **Race-to-Idle Philosophy:** The worker performs its task (cleanup) and then immediately calculates the longest possible time it can sleep, conserving CPU and battery life.
+
+**Pros:**
+- **Maximum Efficiency:** No wasted CPU cycles on unnecessary checks. The worker only runs when there is actual work to do.
+- **Highly Accurate Cleanup:** Expired items are removed very close to their expiration time.
+- **Resource Friendly:** Ideal for battery-powered devices and busy applications by minimizing background activity.
+- **Non-blocking:** All cleanup happens off the main thread.
+
+**Cons:**
+- **Implementation Complexity:** The logic is more sophisticated than a simple `setInterval` loop.
+- **Eventual Consistency:** While the cleanup is fast, it's still asynchronous. Code should not assume `length()` is updated synchronously.
+
+**Use Cases:**
+- **The default choice for all modern applications.** It provides the best balance of performance, accuracy, and resource management.
+- Critical for applications where main-thread performance and battery life are paramount (e.g., complex UIs, mobile web apps).
+
+**Execution Flow:**
+```mermaid
+sequenceDiagram
+    participant UserApp as User Application
+    participant Vault
+    participant Middleware as Expiration Middleware
+    participant Worker as Proactive Worker
+    participant DB as IndexedDB
+
+    Note over UserApp, DB: Initialization on Registration
+    UserApp->>Vault: vault.use(expirationMiddleware(...))
+    Vault->>Middleware: onRegister(vaultInstance)
+    Middleware->>Worker: new Worker()
+    Middleware->>Worker: postMessage({ type: 'init', ... })
+    Worker->>DB: Scan for all items with expiration
+    DB-->>Worker: Return items with `expires` metadata
+    Worker->>Worker: Calculate next expiration time (e.g., in 5 minutes)
+    Worker->>Worker: self.setTimeout(runSweep, 300000)
+    Worker-->>Middleware: postMessage({ type: 'ready' })
+
+    Note over UserApp, DB: Later, a new item is added with a shorter TTL
+    UserApp->>Vault: setItem("newKey", ..., { ttl: '1m' })
+    Vault->>Middleware: onSetItem(...)
+    Middleware->>Worker: postMessage({ type: 'reschedule' })
+    Middleware-->>Vault: Complete setItem
+    Vault-->>UserApp: Acknowledge setItem
+
+    Note right of Worker: Worker receives 'reschedule' message
+    Worker->>Worker: Clear existing setTimeout
+    Worker->>DB: Scan for all items with expiration
+    DB-->>Worker: Return items with `expires` metadata
+    Worker->>Worker: Re-calculate next expiration time (now in 1 minute)
+    Worker->>Worker: self.setTimeout(runSweep, 60000)
+```
+
+### Strategy 5: Event-Driven Cleanup (Advanced)
 
 **Concept:** Reactive cleanup based on system events
 ```typescript

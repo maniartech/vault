@@ -251,9 +251,12 @@ export default class Vault {
    */
   public use(middleware: Middleware): this {
     this.middlewares.push(middleware);
-  // If this instance is proxied, return the proxy to preserve identity in chaining
-  const sp = (this as any).__selfProxy;
-  return (sp ?? this) as this;
+    if (typeof middleware.onRegister === 'function') {
+      middleware.onRegister((this as any).__selfProxy ?? this);
+    }
+    // If this instance is proxied, return the proxy to preserve identity in chaining
+    const sp = (this as any).__selfProxy;
+    return (sp ?? this) as this;
   }
 
   /**

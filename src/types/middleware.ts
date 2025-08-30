@@ -36,6 +36,12 @@ export interface Middleware {
   name: string;
 
   /**
+   * Called when the middleware is registered with a vault instance.
+   * Ideal for initialization tasks.
+   */
+  onRegister?(vaultInstance: any): void;
+
+  /**
    * Called before the operation is executed
    * Can modify the context or throw errors to prevent execution
    */
