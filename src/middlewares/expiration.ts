@@ -10,7 +10,7 @@ import { Middleware, MiddlewareContext } from '../types/middleware.js';
 export interface ExpirationOptions {
     /** Default TTL in milliseconds for all items when no expiration is specified */
     defaultTTL?: number;
-    /** Cleanup strategy: 'proactive', 'immediate', 'background', 'hybrid' */
+    /** Cleanup strategy: 'proactive', 'immediate', 'background' | 'hybrid' */
     cleanupMode?: 'proactive' | 'immediate' | 'background' | 'hybrid';
     /** Background worker interval in milliseconds (default: 200) */
     workerInterval?: number;
@@ -81,12 +81,16 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
             if (data.type === 'init') {
               openDb(data.storageName).then(() => {
                 postMessage({ type: 'ready' }); // Signal readiness
-                rescheduleSweep();
+                                rescheduleSweep();
               }).catch((err) => {
                 postMessage({ type: 'error', error: err ? String(err) : 'Unknown DB error' });
               });
             } else if (data.type === 'reschedule') {
-              rescheduleSweep();
+                            // Proactive mode: recompute next expiration and also sweep any already-expired items
+                            rescheduleSweep();
+                        } else if (data.type === 'sweep-now') {
+                            // Background/Hybrid modes: perform an immediate sweep
+                            runSweep();
             } else if (data.type === 'dispose') {
               if (sweepTimeoutId) clearTimeout(sweepTimeoutId);
               try { self.close(); } catch {}
@@ -104,22 +108,23 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
             });
           }
 
-          function rescheduleSweep() {
-            if (sweepTimeoutId) clearTimeout(sweepTimeoutId);
+                    async function rescheduleSweep() {
+                        if (sweepTimeoutId) clearTimeout(sweepTimeoutId);
 
-            findNextExpiration().then(nextExpiration => {
-              if (nextExpiration === null) return; // No expiring items
+                        // First, sweep any items that are already expired to avoid piling up
+                        await sweepOnce();
 
-              const now = Date.now();
-              const delay = Math.max(0, nextExpiration - now);
+                        const nextExpiration = await findNextExpiration();
+                        if (nextExpiration === null) return; // No future expirations to schedule
 
-              // Set a reasonable max delay to handle items far in the future
-              // and to allow for periodic checks even if no TTLs are set.
-              const effectiveDelay = Math.min(delay, 2147483647); // Max 32-bit signed int
+                        const now = Date.now();
+                        const delay = Math.max(0, nextExpiration - now);
 
-              sweepTimeoutId = setTimeout(runSweep, effectiveDelay);
-            });
-          }
+                        // Set a reasonable max delay to handle items far in the future
+                        const effectiveDelay = Math.min(delay, 2147483647); // Max 32-bit signed int
+
+                        sweepTimeoutId = setTimeout(runSweep, effectiveDelay);
+                    }
 
           async function runSweep() {
             await sweepOnce();
@@ -276,18 +281,17 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
     // Fallback on-demand sweep when no Worker is available
     async function sweepExpired(vaultInstance: any, force: boolean = false) {
         const now = Date.now();
+        if (sweeping) return; // Prevent re-entry
+
         if (!force) {
-            if (sweeping) return;
             if (now - lastSweepAt < ONDEMAND_THROTTLE_MS) return;
-        } else if (sweeping) {
-            return;
         }
+
         sweeping = true;
         lastSweepAt = now;
         try {
             const keys: string[] = await vaultInstance.keys().catch(() => []);
-            let processed = 0;
-            for (const key of keys) {
+            const promises = keys.map(async (key) => {
                 try {
                     const meta = await vaultInstance.getItemMeta(key).catch(() => null);
                     const exp = (meta as any)?.expires;
@@ -295,10 +299,8 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
                         await vaultInstance.removeItem(key).catch(() => void 0);
                     }
                 } catch { /* ignore per-key errors */ }
-                if (++processed % 100 === 0) {
-                    await Promise.resolve(); // yield
-                }
-            }
+            });
+            await Promise.all(promises); // Process all checks in parallel
         } finally {
             sweeping = false;
         }

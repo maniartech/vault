@@ -5,17 +5,18 @@
 import Vault from '../dist/vault.js';
 import { expirationMiddleware } from '../dist/middlewares/expiration.js';
 
-async function waitForWorker(vaultName, health = 'healthy') {
+async function waitForWorker(vaultOrName, health = 'healthy') {
+  const name = typeof vaultOrName === 'string' ? vaultOrName : (vaultOrName && vaultOrName.storageName);
   const registry = globalThis.__vaultExpirationWorkerRegistry__;
-  if (!registry || !registry.has(vaultName)) {
+  if (!registry || !registry.has(name)) {
     // Give it a moment to appear
     await new Promise(r => setTimeout(r, 100));
-    if (!registry || !registry.has(vaultName)) {
-      throw new Error(`Worker for ${vaultName} not found in registry.`);
+    if (!registry || !registry.has(name)) {
+      throw new Error(`Worker for ${name} not found in registry.`);
     }
   }
 
-  const entry = registry.get(vaultName);
+  const entry = registry.get(name);
 
   // If it's already in the desired state, return immediately.
   if (entry.health === health) {
@@ -274,7 +275,7 @@ describe('Expiration Middleware - Strategy Validation', () => {
     });
   });
 
-  fdescribe('Proactive Cleanup Strategy', () => {
+  describe('Proactive Cleanup Strategy', () => {
     const vaultName = 'test-proactive-strategy';
 
     beforeEach(async () => {

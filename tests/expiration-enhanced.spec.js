@@ -20,9 +20,16 @@ describe('Expiration Middleware - Enhanced Coverage', () => {
       vault.use(expirationMiddleware());
     });
 
+    it('should immediately expire an item with ttl: 0', async () => {
+      await vault.setItem('zero-ttl-key', 'value', { ttl: 0 });
+      // A short delay to allow the proactive worker to sweep the item
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const value = await vault.getItem('zero-ttl-key');
+      expect(value).toBeNull();
+    });
+
     it('should handle edge case TTL values', async () => {
       const edgeCases = [
-        { ttl: 0, expectedMs: 0, description: 'zero TTL' },
         { ttl: 1, expectedMs: 1, description: 'minimum TTL' },
         { ttl: Number.MAX_SAFE_INTEGER, expectedMs: Number.MAX_SAFE_INTEGER, description: 'maximum safe integer' },
         { ttl: '0s', expectedMs: 0, description: 'zero seconds string' },
