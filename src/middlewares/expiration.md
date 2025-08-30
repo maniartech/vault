@@ -4,14 +4,17 @@
 
 The Expiration Middleware provides automatic TTL (Time-To-Live) handling and cleanup for vault items. It supports multiple cleanup strategies, from immediate synchronous cleanup to sophisticated background worker-based systems, ensuring both performance and reliability across different use cases.
 
-## Current Implementation
+## Current Architecture: The Proactive Scheduler
 
 ### Architecture
-The current implementation uses a **hybrid approach** combining:
-1. **Immediate expiry checking** during `getItem()` operations
-2. **Background Web Worker** for periodic cleanup
-3. **Fallback on-demand sweep** when workers are unavailable
-4. **Throttled cleanup** to prevent performance degradation
+The current implementation is centered around the **Proactive, Event-Driven Scheduler**, which is the default and most advanced cleanup strategy. This architecture is designed for maximum efficiency, accuracy, and resource conservation. It combines:
+
+1.  **An intelligent, event-driven Web Worker** that sleeps until the exact moment an item is due to expire.
+2.  **Instantaneous re-scheduling** when data is mutated (`setItem`, `removeItem`, `clear`).
+3.  **Zero polling**, which eliminates wasted CPU cycles and conserves battery life.
+4.  **Graceful degradation** to an on-demand sweep if the Worker environment is not available.
+
+This model ensures that cleanup is both timely and has a minimal performance impact on the main application thread.
 
 ### Key Components
 
@@ -44,9 +47,11 @@ Current implementation uses **lazy cleanup**:
 - Background worker performs periodic sweeps
 - Fallback sweep is throttled (300ms minimum interval)
 
-## Problem Analysis
+## Historical Context: The Evolution to a Proactive Strategy
 
-### Current Issues Identified
+This section documents the challenges identified with earlier, less efficient cleanup strategies. The resolution of these issues led directly to the development of the superior **Proactive, Event-Driven Scheduler**, which is now the default.
+
+### Previous Issues Identified
 
 #### 1. Test Failures
 Three main categories of test failures were identified:
@@ -293,7 +298,7 @@ sequenceDiagram
 ```typescript
 // Proactive mode: The new default and most efficient strategy
 vault.use(expirationMiddleware({
-  cleanupMode: 'proactive'
+  cleanupMode: 'proactive' // This is the default if no mode is specified
 }));
 ```
 
