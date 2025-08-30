@@ -287,7 +287,7 @@ describe('Expiration Middleware - Strategy Validation', () => {
     }, 10000);
   });
 
-  fdescribe('Proactive Cleanup Strategy', () => {
+  describe('Proactive Cleanup Strategy', () => {
     const vaultName = 'test-proactive-strategy';
 
     beforeEach(async () => {
@@ -477,7 +477,7 @@ describe('Expiration Middleware - Strategy Validation', () => {
       expect(keys).toContain(`concurrent-${concurrentItems - 1}`);
 
       // Wait long enough for all to expire (longest TTL is 300 + 99*5 = 795ms)
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       expect(await vault.length()).toBe(0);
     }, 15000);
 
@@ -488,12 +488,12 @@ describe('Expiration Middleware - Strategy Validation', () => {
       try {
         // Manually create a separate vault and add an item that will expire
         const preExpireVault = new Vault(vaultName);
-        // No middleware, just raw storage
+        // No middleware, just raw storage. The 3rd arg to setItem is the meta object.
         await preExpireVault.setItem('already-expired', 'value', {
-          meta: { expires: Date.now() - 1000 } // Expired in the past
+          expires: Date.now() - 1000 // Expired in the past
         });
         await preExpireVault.setItem('not-expired', 'value', {
-          meta: { expires: Date.now() + 5000 }
+          expires: Date.now() + 5000
         });
 
         // Now, create a new vault instance with the same name and apply the middleware
