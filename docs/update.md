@@ -2,16 +2,16 @@ Absolutely—let’s integrate **cross‑tab events** into the document at the s
 
 ---
 
-# Update: Add subscribe + cache to Vault class (with cross-tab support)
+# Update: Add subscribe + cache to Vault class
 
 You want to add two features to your existing `Vault` class:
 
 * **Events:** let consumers subscribe to changes, with optional cross-context (multi‑tab/worker) fan-out.
 * **Cache:** keep a tiny in-memory snapshot of `{ key → { value, meta, version } }` to make hot `getItem` calls O(1) after first read/write.
 
-Below is a minimal design + drop-in code you can paste into your existing class. It doesn’t alter any existing method signatures or behavior—only adds new fields and methods, and touches the internals of `getItem`, `setItem`, `removeItem`, `clear` to wire in the cache + events, including cross‑tab events.
+Below is a minimal design + drop-in code you can paste into your existing class. It doesn’t alter any existing method signatures or behavior—only adds new fields and methods, and touches the internals of `getItem`, `setItem`, `removeItem`, `clear` to wire in the cache + local events.
 
-(Background refs: **BroadcastChannel** for cross‑tab messages, **EventTarget** for an internal event bus, and **IndexedDB**’s transactional model & structured-clone storage. ([MDN Web Docs][1], [Medium][2], [Chrome for Developers][3], [MDN Web Docs][4], [Medium][5]) ([MDN Web Docs][6]))
+Note: Cross-tab synchronization is intentionally not part of the core. If you need it, see the optional Sync middleware in `docs/browser-sync-middleware.md`.
 
 ---
 
@@ -28,7 +28,7 @@ type CacheEntry = { value: any; meta?: any; version: number };
 
 ---
 
-## 2) Private fields (bus, cache, channel)
+## 2) Private fields (bus, cache)
 
 Add these private fields to the class:
 
@@ -39,24 +39,10 @@ private __bus = new EventTarget();
 // — in-memory snapshot cache
 private __cache = new Map<string, CacheEntry>();
 
-// — optional cross-context bridge (tabs/workers)
-private __bc: BroadcastChannel | null = null;
+// (No cross-context transport in core; see sync middleware doc)
 ```
 
-Initialize the channel **optionally** in your constructor (safe in browsers that support it; otherwise no-op):
-
-```ts
-try {
-  this.__bc = new BroadcastChannel(`vault:${this.storageName}`);
-  this.__bc.addEventListener("message", (ev: MessageEvent<ChangeEvent>) => {
-    this.__applyRemote(ev.data);
-  });
-} catch {
-  // BroadcastChannel not available — fallback silently
-}
-```
-
-BroadcastChannel enables simple same-origin cross‑tab communication; supported in modern browsers. Compatibility is broad: Chrome 54+, Edge 79+, Firefox 38+, Safari 15.4+, Opera 41+ (\~95% coverage) ([adocasts.com][7], [Reddit][8], [Can I Use][9]).
+// No BroadcastChannel setup in core; cross-context sync is provided by middleware.
 
 ---
 
@@ -93,11 +79,10 @@ This uses **EventTarget**—small and native, with no dependencies. ([MDN Web Do
 ```ts
 private __emit(ev: ChangeEvent) {
   this.__bus.dispatchEvent(new CustomEvent<ChangeEvent>("change", { detail: ev }));
-  this.__bc?.postMessage(ev); // broadcast to other contexts
 }
 ```
 
-BroadcastChannel’s `message` event delivers the payload to all other listeners on the same channel. ([MDN Web Docs][1])
+// Cross-context fan-out can be implemented by an optional sync middleware.
 
 ---
 
@@ -127,27 +112,7 @@ private __cacheClear(prefix?: string) {
 
 ---
 
-## 6) Apply remote (cross-tab) updates (internal)
-
-```ts
-private async __applyRemote(ev: ChangeEvent) {
-  if (ev.key && ev.op === "set") {
-    const local = this.__cache.get(ev.key);
-    if (!local || (ev.version ?? 0) >= (local.version ?? 0)) {
-      const rec = await this.do<any>("readonly", s => s.get(ev.key!));
-      const version = rec?.meta?.version ?? Date.now();
-      this.__cache.set(ev.key!, { value: rec?.value, meta: rec?.meta, version });
-      this.__bus.dispatchEvent(new CustomEvent<ChangeEvent>("change", { detail: { op: "set", key: ev.key, meta: rec?.meta, version } }));
-    }
-  } else if (ev.key && ev.op === "remove") {
-    this.__cacheDelete(ev.key);
-    this.__bus.dispatchEvent(new CustomEvent<ChangeEvent>("change", { detail: ev }));
-  } else if (ev.op === "clear") {
-    this.__cacheClear();
-    this.__bus.dispatchEvent(new CustomEvent<ChangeEvent>("change", { detail: ev }));
-  }
-}
-```
+// Remote-apply logic is handled by the sync middleware when installed.
 
 ---
 
