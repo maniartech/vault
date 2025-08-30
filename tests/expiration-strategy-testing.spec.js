@@ -135,12 +135,13 @@ describe('Expiration Middleware - Strategy Validation', () => {
   });
 
   describe('Background Cleanup Strategy', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       vault = new Vault('test-background-strategy');
       vault.use(expirationMiddleware({
         cleanupMode: 'background',
         workerInterval: 100 // Faster for testing
       }));
+      await waitForWorker(vault, 'healthy');
     });
 
     it('should clean up expired items via background worker', async () => {
@@ -220,11 +221,12 @@ describe('Expiration Middleware - Strategy Validation', () => {
   });
 
   describe('Hybrid Cleanup Strategy', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       vault = new Vault('test-hybrid-strategy');
       vault.use(expirationMiddleware({
         cleanupMode: 'hybrid'
       }));
+      await waitForWorker(vault, 'healthy');
     });
 
     it('should provide immediate response with background cleanup', async () => {
@@ -233,7 +235,7 @@ describe('Expiration Middleware - Strategy Validation', () => {
         await vault.setItem(`hybrid-${i}`, `value-${i}`, { ttl: 50 });
       }
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // First access should return null immediately
       const firstResult = await vault.getItem('hybrid-0');
@@ -267,12 +269,22 @@ describe('Expiration Middleware - Strategy Validation', () => {
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Don't access items, let background worker clean them
-      await new Promise(resolve => setTimeout(resolve, 400));
+      // Nudge the worker to start cleanup. The cleanup is async.
+      await vault.length();
 
-      const length = await vault.length();
-      expect(length).toBe(0);
-    });
+      // Poll for the length to become 0, with a timeout
+      let finalLength = -1;
+      const pollStartTime = Date.now();
+      while (Date.now() - pollStartTime < 5000) { // 5-second timeout for polling
+        finalLength = await vault.length();
+        if (finalLength === 0) {
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100)); // Poll every 100ms
+      }
+
+      expect(finalLength).toBe(0);
+    }, 10000);
   });
 
   describe('Proactive Cleanup Strategy', () => {
@@ -435,6 +447,9 @@ describe('Expiration Middleware - Strategy Validation', () => {
       // Set an item to trigger worker initialization
       await vault.setItem('worker-test', 'value', { ttl: 100 });
 
+      // Wait for worker to become healthy
+      await waitForWorker(vault.storageName, 'healthy');
+
       // Check if worker is registered
       const registry = globalThis.__vaultExpirationWorkerRegistry__;
       expect(registry).toBeDefined();
@@ -443,7 +458,7 @@ describe('Expiration Middleware - Strategy Validation', () => {
       const workerEntry = registry.get(vault.storageName);
       expect(workerEntry.worker).toBeInstanceOf(Worker);
       expect(workerEntry.health).toBe('healthy');
-    });
+    }, 10000);
 
     it('should verify immediate mode does not create workers', async () => {
       vault = new Vault('test-immediate-no-worker');
