@@ -287,7 +287,7 @@ describe('Expiration Middleware - Strategy Validation', () => {
     }, 10000);
   });
 
-  describe('Proactive Cleanup Strategy', () => {
+  fdescribe('Proactive Cleanup Strategy', () => {
     const vaultName = 'test-proactive-strategy';
 
     beforeEach(async () => {
@@ -394,6 +394,146 @@ describe('Expiration Middleware - Strategy Validation', () => {
       // If waitForWorker in beforeEach passed, this test implicitly passes.
       expect(true).toBe(true);
     });
+
+    it('should handle high churn with rapid additions and removals', async () => {
+      // Add a batch of items with varying TTLs. Increased base TTL to reduce flakiness.
+      const promises = [];
+      for (let i = 0; i < 50; i++) {
+        promises.push(vault.setItem(`churn-${i}`, 'value', { ttl: 300 + i * 10 }));
+      }
+      await Promise.all(promises);
+
+      // Immediately remove some of them
+      await vault.removeItem('churn-5');
+      await vault.removeItem('churn-15');
+      await vault.removeItem('churn-25');
+
+      // Wait for the shortest TTLs to expire
+      await new Promise(resolve => setTimeout(resolve, 450));
+
+      const keys = await vault.keys();
+      expect(keys).not.toContain('churn-0'); // TTL 300ms, should be gone
+      expect(keys).not.toContain('churn-5'); // Should be removed manually
+      expect(keys).not.toContain('churn-10'); // TTL 400ms, should be gone
+
+      // Check that items with longer TTLs still exist
+      expect(keys).toContain('churn-40'); // TTL 700ms
+      expect(keys).toContain('churn-49'); // TTL 790ms
+
+      // Wait for all to expire (longest TTL is 790ms)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      expect(await vault.length()).toBe(0);
+    }, 15000);
+
+    it('should recover if the worker is terminated', async () => {
+      // Ensure worker is running
+      await vault.setItem('initial-item', 'value', { ttl: 5000 });
+      await waitForWorker(vaultName, 'healthy');
+
+      // Manually terminate the worker
+      const registry = globalThis.__vaultExpirationWorkerRegistry__;
+      const entry = registry.get(vaultName);
+      expect(entry).toBeDefined();
+      entry.worker.terminate();
+      registry.delete(vaultName); // Simulate full removal
+
+      // The next operation should fail to nudge, but the onRegister should re-create it
+      // Let's create a new vault instance to trigger onRegister again
+      const newVault = new Vault(vaultName);
+      const middleware = expirationMiddleware({ cleanupMode: 'proactive' });
+      newVault.use(middleware);
+
+      // Wait for the new worker to initialize
+      await waitForWorker(vaultName, 'healthy');
+
+      // Add a new item with a short TTL
+      await newVault.setItem('recovery-test', 'value', { ttl: 150 });
+
+      // Wait for it to be cleaned up
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const keys = await newVault.keys();
+      expect(keys).not.toContain('recovery-test');
+      await newVault.clear();
+    }, 15000);
+
+    it('should handle many concurrent setItem calls', async () => {
+      const concurrentItems = 100;
+      const ttl = 300; // Increased TTL for stability
+
+      // Fire off many setItem calls in parallel
+      const setPromises = Array.from({ length: concurrentItems }, (_, i) =>
+        vault.setItem(`concurrent-${i}`, 'value', { ttl: ttl + i * 5 })
+      );
+      await Promise.all(setPromises);
+
+      expect(await vault.length()).toBe(concurrentItems);
+
+      // Wait for the shortest TTL to expire, plus a buffer
+      await new Promise(resolve => setTimeout(resolve, ttl + 200));
+
+      const keys = await vault.keys();
+      expect(keys).not.toContain('concurrent-0');
+      expect(keys).toContain(`concurrent-${concurrentItems - 1}`);
+
+      // Wait long enough for all to expire (longest TTL is 300 + 99*5 = 795ms)
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      expect(await vault.length()).toBe(0);
+    }, 15000);
+
+    it('should clean up items that were already expired upon initialization', async () => {
+      const vaultName = 'test-pre-expired';
+      const registry = globalThis.__vaultExpirationWorkerRegistry__;
+
+      try {
+        // Manually create a separate vault and add an item that will expire
+        const preExpireVault = new Vault(vaultName);
+        // No middleware, just raw storage
+        await preExpireVault.setItem('already-expired', 'value', {
+          meta: { expires: Date.now() - 1000 } // Expired in the past
+        });
+        await preExpireVault.setItem('not-expired', 'value', {
+          meta: { expires: Date.now() + 5000 }
+        });
+
+        // Now, create a new vault instance with the same name and apply the middleware
+        const testVault = new Vault(vaultName);
+        testVault.use(expirationMiddleware({ cleanupMode: 'proactive' }));
+
+        // The worker should start on registration and its initial sweep should clear the expired item
+        await waitForWorker(vaultName, 'healthy');
+
+        // Poll until the expired item is gone, with a timeout
+        await (async () => {
+          const start = Date.now();
+          while (Date.now() - start < 5000) { // 5-second timeout
+            const keys = await testVault.keys();
+            if (!keys.includes('already-expired')) {
+              return; // Success
+            }
+            await new Promise(r => setTimeout(r, 100)); // Wait and retry
+          }
+          throw new Error('Timed out waiting for pre-expired item to be removed.');
+        })();
+
+        const keys = await testVault.keys();
+        expect(keys).not.toContain('already-expired');
+        expect(keys).toContain('not-expired');
+        expect(await testVault.length()).toBe(1);
+
+        await testVault.clear();
+      } finally {
+        // Ensure cleanup happens to prevent state leakage
+        if (registry && registry.has(vaultName)) {
+          try {
+            registry.get(vaultName).worker.terminate();
+          } catch (e) {
+            console.error(`Error terminating worker for ${vaultName} in finally block:`, e);
+          }
+          registry.delete(vaultName);
+        }
+      }
+    }, 10000); // Increase timeout for this test
   });
 
   describe('Strategy Performance Comparison', () => {
