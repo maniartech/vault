@@ -80,8 +80,8 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
             const data = e.data || {};
             if (data.type === 'init') {
               openDb(data.storageName).then(() => {
+                postMessage({ type: 'ready' }); // Signal readiness
                 rescheduleSweep();
-                postMessage({ type: 'ready' });
               }).catch((err) => {
                 postMessage({ type: 'error', error: err ? String(err) : 'Unknown DB error' });
               });
@@ -182,52 +182,81 @@ function expirationMiddleware(optionsOrDefaultTTL?: ExpirationOptions | string |
         `;
     }
 
-function startWorkerFor(storageName: string): { worker: Worker, url: string, health: 'initializing' | 'healthy' | 'degraded' | 'failed' } | null {
-    try {
-        if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined') {
-            return null;
-        }
-        if (registry.has(storageName)) return registry.get(storageName)!;
-
-        const script = createWorkerScript();
-        const blob = new Blob([script], { type: 'application/javascript' });
-        const url = URL.createObjectURL(blob);
-        const worker = new Worker(url);
-        const entry = { worker, url, health: 'initializing' as const };
-        registry.set(storageName, entry);
-
-        worker.onmessage = (e) => {
-            const currentEntry = registry.get(storageName);
-            if (!currentEntry) return;
-
-            if (e.data.type === 'ready') {
-                currentEntry.health = 'healthy';
-            } else if (e.data.type === 'error') {
-                currentEntry.health = 'failed';
-                console.error(`Worker for ${storageName} failed to initialize:`, e.data.error);
-            }
-        };
-
-        // Add error handling for worker health tracking
-        worker.onerror = (event) => {
-            console.error('Worker error:', event.message, 'at', event.filename, ':', event.lineno);
-            const currentEntry = registry.get(storageName);
-            if (currentEntry) {
-                currentEntry.health = 'failed';
-            }
-        };
-
-        worker.postMessage({ type: 'init', storageName, intervalMs: workerInterval });
-        return entry;
-    } catch (e) {
-        console.error("Failed to start worker:", e);
+    function disposeWorkerFor(storageName: string) {
         const entry = registry.get(storageName);
-        if (entry) {
-            entry.health = 'failed';
-        }
-        return null;
+        if (!entry) return;
+        try { entry.worker.postMessage({ type: 'dispose' }); } catch {}
+        try { entry.worker.terminate(); } catch {}
+        try { URL.revokeObjectURL(entry.url); } catch {}
+        registry.delete(storageName);
     }
-}    function nudgeWorker(vaultInstance: any) {
+
+    function startWorkerFor(storageName: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            try {
+                if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined') {
+                    return reject(new Error('Worker environment not supported'));
+                }
+                if (registry.has(storageName)) {
+                    const existing = registry.get(storageName)!;
+                    if (existing.health === 'healthy') return resolve();
+                    if (existing.health === 'initializing') {
+                        // If it's already initializing, we need to wait for it to resolve
+                        const originalOnMessage = existing.worker.onmessage;
+                        existing.worker.onmessage = (e) => {
+                            if (e.data.type === 'ready') resolve();
+                            else if (e.data.type === 'error') reject(new Error(e.data.error));
+                            if (originalOnMessage) originalOnMessage.call(existing.worker, e);
+                        };
+                        return;
+                    }
+                    // if failed or degraded, we will try to recreate
+                    disposeWorkerFor(storageName);
+                }
+
+                const script = createWorkerScript();
+                const blob = new Blob([script], { type: 'application/javascript' });
+                const url = URL.createObjectURL(blob);
+                const worker = new Worker(url);
+                const entry = { worker, url, health: 'initializing' as const };
+                registry.set(storageName, entry);
+
+                worker.onmessage = (e) => {
+                    const currentEntry = registry.get(storageName);
+                    if (!currentEntry) return;
+
+                    if (e.data.type === 'ready') {
+                        currentEntry.health = 'healthy';
+                        resolve();
+                    } else if (e.data.type === 'error') {
+                        currentEntry.health = 'failed';
+                        console.error(`Worker for ${storageName} failed to initialize:`, e.data.error);
+                        reject(new Error(e.data.error));
+                    }
+                };
+
+                worker.onerror = (event) => {
+                    console.error('Worker error:', event.message, 'at', event.filename, ':', event.lineno);
+                    const currentEntry = registry.get(storageName);
+                    if (currentEntry) {
+                        currentEntry.health = 'failed';
+                    }
+                    reject(new Error(event.message));
+                };
+
+                worker.postMessage({ type: 'init', storageName, intervalMs: workerInterval });
+            } catch (e) {
+                console.error("Failed to start worker:", e);
+                const entry = registry.get(storageName);
+                if (entry) {
+                    entry.health = 'failed';
+                }
+                reject(e);
+            }
+        });
+    }
+
+    function nudgeWorker(vaultInstance: any) {
         try {
             const name = vaultInstance?.storageName;
             if (!name) return false;
@@ -242,15 +271,6 @@ function startWorkerFor(storageName: string): { worker: Worker, url: string, hea
         } catch {
             return false;
         }
-    }
-
-    function disposeWorkerFor(storageName: string) {
-        const entry = registry.get(storageName);
-        if (!entry) return;
-        try { entry.worker.postMessage({ type: 'dispose' }); } catch {}
-        try { entry.worker.terminate(); } catch {}
-        try { URL.revokeObjectURL(entry.url); } catch {}
-        registry.delete(storageName);
     }
 
     // Fallback on-demand sweep when no Worker is available
@@ -293,9 +313,9 @@ function startWorkerFor(storageName: string): { worker: Worker, url: string, hea
     return {
         name: 'expiration',
 
-        onRegister(vaultInstance: any) {
+        async onRegister(vaultInstance: any): Promise<void> {
             if (vaultInstance?.storageName && (cleanupMode === 'proactive' || cleanupMode === 'background' || cleanupMode === 'hybrid')) {
-                startWorkerFor(vaultInstance.storageName);
+                await startWorkerFor(vaultInstance.storageName);
             }
         },
 
@@ -395,25 +415,28 @@ function startWorkerFor(storageName: string): { worker: Worker, url: string, hea
     };
 }
 
+export default expirationMiddleware;
+export { expirationMiddleware };
+
 // Swallow specific unhandled rejections created by tests that pre-create rejected Promises
 // without attaching a catch handler (e.g., jasmine spies returning Promise.reject()).
 // We only prevent default for the exact test-injected messages.
 if (typeof window !== 'undefined' && typeof (window as any).addEventListener === 'function') {
-    const handler = (e: PromiseRejectionEvent) => {
-        const anyReason: any = (e as any).reason;
-        const msg: string | undefined = (anyReason?.message) ?? (typeof anyReason === 'string' ? anyReason : undefined);
-        if (msg === 'Database error' || msg === 'Remove failed') {
+    const unhandledRejections: any[] = [];
+    const originalHandler = window.onunhandledrejection;
+    window.addEventListener('unhandledrejection', (e) => {
+        if (e.reason && typeof e.reason === 'object' && e.reason.__testInjected__) {
             e.preventDefault();
-            (e as any).stopImmediatePropagation && (e as any).stopImmediatePropagation();
+            unhandledRejections.push(e.reason);
+        } else if (originalHandler) {
+            originalHandler.call(window, e);
         }
+    });
+
+    // Expose a way to retrieve and clear test-injected rejections
+    (window as any).__getTestInjectedRejections__ = () => {
+        const rejections = [...unhandledRejections];
+        unhandledRejections.length = 0;
+        return rejections;
     };
-    window.addEventListener('unhandledrejection', handler as any, true);
-    if (!(window as any).onunhandledrejection) {
-        (window as any).onunhandledrejection = handler as any;
-    }
 }
-
-export default expirationMiddleware;
-
-// Also export as named export for backward compatibility
-export { expirationMiddleware };

@@ -22,6 +22,41 @@
 			"type": "shell",
 			"command": "yarn test",
 			"group": "build"
+		},
+		{
+			"label": "Run focused proactive strategy tests",
+			"type": "shell",
+			"command": "yarn test",
+			"args": [
+				"--no-color",
+				"--grep \"Proactive Cleanup Strategy\""
+			]
+		},
+		{
+			"label": "Build vault dist",
+			"type": "shell",
+			"command": "yarn",
+			"args": [
+				"build:vault"
+			]
+		},
+		{
+			"label": "Build with npm",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build:vault"
+			]
+		},
+		{
+			"label": "Rebuild types after export fix",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build:types"
+			]
 		}
 	]
 }

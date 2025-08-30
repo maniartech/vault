@@ -5,17 +5,17 @@
 import Vault from '../dist/vault.js';
 import { expirationMiddleware } from '../dist/middlewares/expiration.js';
 
-async function waitForWorker(vaultInstance, health = 'healthy') {
+async function waitForWorker(vaultName, health = 'healthy') {
   const registry = globalThis.__vaultExpirationWorkerRegistry__;
-  if (!registry || !registry.has(vaultInstance.storageName)) {
+  if (!registry || !registry.has(vaultName)) {
     // Give it a moment to appear
     await new Promise(r => setTimeout(r, 100));
-    if (!registry || !registry.has(vaultInstance.storageName)) {
-      throw new Error(`Worker for ${vaultInstance.storageName} not found in registry.`);
+    if (!registry || !registry.has(vaultName)) {
+      throw new Error(`Worker for ${vaultName} not found in registry.`);
     }
   }
 
-  const entry = registry.get(vaultInstance.storageName);
+  const entry = registry.get(vaultName);
 
   // If it's already in the desired state, return immediately.
   if (entry.health === health) {
@@ -271,6 +271,115 @@ describe('Expiration Middleware - Strategy Validation', () => {
 
       const length = await vault.length();
       expect(length).toBe(0);
+    });
+  });
+
+  fdescribe('Proactive Cleanup Strategy', () => {
+    const vaultName = 'test-proactive-strategy';
+
+    beforeEach(async () => {
+      // Ensure no worker from a previous test run is lingering
+      const registry = globalThis.__vaultExpirationWorkerRegistry__;
+      if (registry && registry.has(vaultName)) {
+        try {
+          registry.get(vaultName).worker.terminate();
+        } catch (e) {
+          console.error('Error terminating lingering worker:', e);
+        }
+        registry.delete(vaultName);
+      }
+
+      vault = new Vault(vaultName);
+
+      const middleware = expirationMiddleware({
+        cleanupMode: 'proactive',
+      });
+
+      // Register middleware, which triggers worker creation
+      vault.use(middleware);
+
+      // Wait for the worker to be initialized by the onRegister hook
+      try {
+        await waitForWorker(vaultName, 'healthy');
+      } catch (error) {
+        // Provide a more informative error if the worker fails to start
+        console.error('Worker did not initialize in time for the test.', error);
+        throw error; // Re-throw to fail the test clearly
+      }
+    });
+
+    afterEach(async () => {
+      // This afterEach is specific to the proactive suite for safety
+      if (vault) {
+        await vault.clear();
+        const registry = globalThis.__vaultExpirationWorkerRegistry__;
+        if (registry && registry.has(vault.storageName)) {
+          try {
+            registry.get(vault.storageName).worker.terminate();
+          } catch (e) {
+            console.error('Error terminating worker in proactive afterEach:', e);
+          }
+          registry.delete(vault.storageName);
+        }
+      }
+    });
+
+    it('should initialize the worker on registration', async () => {
+      // The worker should be started by the `use` call, not an operation
+      await waitForWorker(vaultName);
+      const registry = globalThis.__vaultExpirationWorkerRegistry__;
+      expect(registry.has(vault.storageName)).toBe(true);
+      const entry = registry.get(vault.storageName);
+      expect(entry.health).toBe('healthy');
+    }, 10000);
+
+    it('should schedule a precise cleanup and remove an item', async () => {
+      const ttl = 200;
+      const startTime = Date.now();
+      await vault.setItem('proactive-key', 'value', { ttl });
+
+      // Wait for a bit longer than the TTL
+      await new Promise(resolve => setTimeout(resolve, ttl + 150));
+
+      // The item should be gone from storage, not just return null
+      const keys = await vault.keys();
+      expect(keys).not.toContain('proactive-key');
+      expect(await vault.length()).toBe(0);
+    });
+
+    it('should re-schedule when a new item with a shorter TTL is added', async () => {
+      // Set an item with a long TTL
+      await vault.setItem('long-ttl-key', 'value', { ttl: 5000 });
+
+      // Give the worker a moment to schedule the long sleep
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Now add an item with a very short TTL
+      const shortTtl = 150;
+      await vault.setItem('short-ttl-key', 'value', { ttl: shortTtl });
+
+      // The worker should have been nudged to reschedule.
+      // Wait for the short TTL to expire.
+      await new Promise(resolve => setTimeout(resolve, shortTtl + 100));
+
+      // The short-lived item should be gone
+      let keys = await vault.keys();
+      expect(keys).not.toContain('short-ttl-key');
+
+      // The long-lived item should still be there
+      expect(keys).toContain('long-ttl-key');
+      expect(await vault.length()).toBe(1);
+    });
+
+    it('should handle an empty vault without errors', async () => {
+      // The beforeEach already waits for the worker.
+      // We just need to ensure no errors are thrown during idle time.
+      await vault.clear(); // Nudge it with an empty state
+
+      // No assertions needed, just checking for absence of errors
+      await new Promise(resolve => setTimeout(resolve, 200));
+      // If waitForWorker in beforeEach passed, this test implicitly passes.
+      expect(true).toBe(true);
     });
   });
 

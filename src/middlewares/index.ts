@@ -4,7 +4,7 @@
 
 // Import default exports from individual middleware files
 import validationMiddleware from './validation.js';
-import expirationMiddleware from './expiration.js';
+import { expirationMiddleware } from './expiration.js';
 import encryptionMiddleware from './encryption.js';
 
 // Re-export for named imports (backwards compatibility)
