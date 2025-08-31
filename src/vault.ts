@@ -8,6 +8,10 @@ import { ValidationError } from './middlewares/validation.js';
 const r = 'readonly', rw = 'readwrite';
 const s = 'store';
 
+// Internal event types for the events system
+type ChangeOp = "set" | "remove" | "clear";
+type ChangeEvent = { op: ChangeOp; key?: string; meta?: any; version?: number };
+
 /**
  * Vault is an asynchronous key/value store similar to localStorage, but
  * provides a more flexible and powerful storage mechanism.
@@ -19,6 +23,10 @@ export default class Vault {
   protected db: IDBDatabase | null = null;
   /** Registered middlewares for the pipeline */
   public middlewares: Middleware[] = [];
+  /** Internal event bus (same-process) */
+  private __bus = new EventTarget();
+  /** Optional DOM-like property handler for convenience */
+  public onchange?: (e: CustomEvent<ChangeEvent>) => void;
   [key: string]: any;
 
   /**
@@ -86,11 +94,21 @@ export default class Vault {
 
     return this.executeWithMiddleware(context, async () => {
       // The core operation now only performs the put, validation is centralized
-      return this.do(rw, (store: IDBObjectStore) => store.put({
+      const result = await this.do(rw, (store: IDBObjectStore) => store.put({
         key: context.key as string,
         value: context.value as T,
         meta: (context.meta ?? null) as VaultItemMeta | null
       } as any));
+
+      // Emit change event after successful storage operation
+      this.__emit({
+        op: "set",
+        key: context.key as string,
+        meta: context.meta,
+        version: Date.now()
+      });
+
+      return result;
     });
   }
 
@@ -135,7 +153,18 @@ export default class Vault {
       const record = await this.do<VaultItem>(r, (store: IDBObjectStore) => store.get(context.key as string));
       context.meta = record?.meta ?? null;
       context.value = record?.value ?? null;
-      return this.do(rw, (store: IDBObjectStore) => store.delete(context.key as string));
+
+      const result = await this.do(rw, (store: IDBObjectStore) => store.delete(context.key as string));
+
+      // Emit change event after successful removal
+      this.__emit({
+        op: "remove",
+        key: context.key as string,
+        meta: context.meta,
+        version: Date.now()
+      });
+
+      return result;
     });
   }
 
@@ -184,7 +213,15 @@ export default class Vault {
     };
 
     return this.executeWithMiddleware(context, async () => {
-      return this.do(rw, (store: IDBObjectStore) => store.clear());
+      const result = await this.do(rw, (store: IDBObjectStore) => store.clear());
+
+      // Emit change event after clearing storage
+      this.__emit({
+        op: "clear",
+        version: Date.now()
+      });
+
+      return result;
     });
   }
 
@@ -257,6 +294,60 @@ export default class Vault {
     // If this instance is proxied, return the proxy to preserve identity in chaining
     const sp = (this as any).__selfProxy;
     return (sp ?? this) as this;
+  }
+
+  /**
+   * Add an event listener to the vault.
+   * @param {string} type - The event type to listen for.
+   * @param {EventListenerOrEventListenerObject} listener - The event listener function.
+   * @param {boolean | AddEventListenerOptions} [options] - Optional event listener options.
+   */
+  public addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions
+  ): void {
+    this.__bus.addEventListener(type, listener as any, options as any);
+  }
+
+  /**
+   * Remove an event listener from the vault.
+   * @param {string} type - The event type to remove the listener from.
+   * @param {EventListenerOrEventListenerObject} listener - The event listener function to remove.
+   * @param {boolean | EventListenerOptions} [options] - Optional event listener options.
+   */
+  public removeEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | EventListenerOptions
+  ): void {
+    this.__bus.removeEventListener(type, listener as any, options as any);
+  }
+
+  /**
+   * Dispatch an event on the vault.
+   * @param {Event} event - The event to dispatch.
+   * @returns {boolean} - Whether the event was successfully dispatched.
+   */
+  public dispatchEvent(event: Event): boolean {
+    return this.__bus.dispatchEvent(event);
+  }
+
+  /**
+   * Emit an internal change event.
+   * @param {ChangeEvent} ev - The change event to emit.
+   */
+  private __emit(ev: ChangeEvent) {
+    const evt = new CustomEvent<ChangeEvent>("change", { detail: ev });
+    this.__bus.dispatchEvent(evt);
+    // Optional DOM-like handler
+    if (typeof this.onchange === "function") {
+      try {
+        this.onchange(evt as any);
+      } catch {
+        // Silently catch errors in onchange handler
+      }
+    }
   }
 
   /**
