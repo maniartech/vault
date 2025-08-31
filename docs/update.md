@@ -261,25 +261,24 @@ Middleware can voluntarily optimize their operations when `context.fromCache` is
 
 ### Encryption Middleware
 ```ts
-// Must always run - no optimization possible for security
+// Can skip decryption on cache hits - data already decrypted when cached
 async after(context: MiddlewareContext, result: any): Promise<any> {
-  if (context.operation === 'get') {
-    // Always decrypt, but can optimize key derivation if needed
-    if (context.fromCache) {
-      // Optional: Use cached key derivation, but still must decrypt
-    }
-    return await decrypt(result, this.config);
+  if (context.operation === 'get' && context.fromCache) {
+    // Cache hit: data is already decrypted, return as-is
+    return result;
   }
-  return result;
+
+  // Cache miss: decrypt the raw data from DB
+  return await decrypt(result, this.config);
 }
 ```
 
 ### Expiration Middleware
 ```ts
-// Can optimize expiration checks using cached metadata and invalidate cache when needed
+// MUST always run - expiration checks are time-sensitive and cannot be cached
 async after(context: MiddlewareContext, result: any): Promise<any> {
-  if (context.operation === 'get' && context.fromCache) {
-    // Fast path: check expiration from cached meta without DB access
+  if (context.operation === 'get') {
+    // Always check expiration regardless of cache status
     const expires = context.meta?.expires;
     if (expires && Date.now() > expires) {
       // Item expired - invalidate cache immediately
@@ -291,10 +290,10 @@ async after(context: MiddlewareContext, result: any): Promise<any> {
       await context.vaultInstance.removeItem(context.key);
       return null;
     }
-    return result; // Not expired, return cached result
+    return result; // Not expired, return result
   }
 
-  // Normal path: full expiration logic for fresh DB reads
+  // Normal path: full expiration logic for writes
   // ... existing implementation
 }
 ```
@@ -329,9 +328,9 @@ async after(context: MiddlewareContext, result: any): Promise<any> {
 ```
 
 ### General Guidelines:
-- **Security-critical middleware** (encryption): Must always run fully
-- **Data validation middleware**: Can skip on cached reads (already validated)
-- **Expiration/TTL middleware**: Can optimize using cached metadata and invalidate cache when items expire
+- **Encryption middleware**: Can skip decryption on cache hits (data already decrypted when cached)
+- **Validation middleware**: Can skip validation on cached reads (data already validated when stored)
+- **Expiration/TTL middleware**: MUST always run - expiration is time-sensitive and cannot be cached
 - **Logging/audit middleware**: Can differentiate between cache hits and DB reads
 - **Cache invalidation**: Use `context.invalidateCache(key)` when middleware removes or invalidates items
 - **Custom middleware**: Use `context.fromCache` to optimize expensive operations when safe
