@@ -101,10 +101,10 @@ private __emit(ev: ChangeEvent) {
 ## 5) Cache helpers (internal)
 
 ```ts
-private __cacheSet(key: string, value: any, meta?: any) {
-  const version = (meta?.version as number) ?? Date.now();
-  this.__cache.set(key, { value, meta, version });
-  return version;
+private __cacheSet(key: string, value: any, meta: any | null, version?: number) {
+  const v = version ?? Date.now();
+  this.__cache.set(key, { value, meta, version: v });
+  return v;
 }
 
 private __cacheGet<T>(key: string): T | undefined {
@@ -128,16 +128,15 @@ private __cacheClear(prefix?: string) {
 
 ---
 
-## 7) Surgical changes to existing methods
+## 6) Surgical changes to existing methods
 
-Only modify internals—no public API changes.
-
+* **Cross‑context sync (optional)**: available via middleware; see `docs/browser-sync-middleware.md`.
+* **Conflict resolution**: LWW with a top-level `version` field.
 ### a) `getItem`
 
 ```ts
 public async getItem<T = unknown>(key: string): Promise<T | null | undefined> {
   const context: MiddlewareContext = { operation: 'get', key };
-  // BUGFIX: treat undefined values as cache hits by checking presence
   if (this.__cache.has(key)) {
     return this.__cacheGet<T>(key) as any;
   }
@@ -145,9 +144,11 @@ public async getItem<T = unknown>(key: string): Promise<T | null | undefined> {
     const record = await this.do<VaultItem<T>>('readonly', store => store.get(context.key as string));
     context.meta = record?.meta ?? null;
     context.value = record == null ? null : record.value;
+
     if (record != null) {
-      const version = (record.meta?.version as number) ?? Date.now();
-      this.__cache.set(key, { value: record.value, meta: record.meta, version });
+      // Prefer top-level version; fall back to legacy meta.version; else synthesize
+      const version = (record as any).version ?? (record.meta?.version as number | undefined) ?? Date.now();
+      this.__cacheSet(key, record.value, record.meta, version);
     }
     return record == null ? null : record.value;
   });
@@ -160,13 +161,18 @@ No mutation; safe because IndexedDB uses structured clone. ([Chrome for Develope
 
 ```ts
 public async setItem<T = unknown>(key: string, value: T, meta: VaultItemMeta | null = null): Promise<void> {
-  const version = (meta?.version as number) ?? Date.now();
-  // BUGFIX: avoid spreading null; keep type narrow
-  const nextMeta = (meta ? { ...meta, version } : ({ version } as VaultItemMeta | null));
+  const version = Date.now(); // new write => new version; durable across reloads
+  const nextMeta = meta;      // do not inject version into meta; preserve null as null
   const context: MiddlewareContext = { operation: 'set', key, value, meta: nextMeta };
+
   return this.executeWithMiddleware(context, async () => {
-    await this.do('readwrite', store => store.put({ key: context.key as string, value: context.value as T, meta: context.meta as any } as any));
-    this.__cacheSet(key, context.value, context.meta);
+    await this.do('readwrite', store => store.put({
+      key: context.key as string,
+      value: context.value as T,
+      meta: context.meta as any,     // can be null
+      version                         // top-level persisted field
+    } as any));
+    this.__cacheSet(key, context.value, context.meta, version);
     this.__emit({ op: "set", key, meta: context.meta, version });
   });
 }
@@ -202,11 +208,14 @@ public async clear(confirm?: boolean): Promise<void> {
 }
 ```
 
-Existing methods like `keys()` remain untouched.
+- Existing methods like `keys()` remain untouched.
+- Storage shape: items are saved as { key, value, meta, version }.
+- Backward compatibility: older records may not have version; treat as (meta?.version ?? Date.now()) when read.
+- IndexedDB doesn’t require a schema migration to add fields; extra properties can be stored without upgrading the object store.
 
 ---
 
-## 8) Behavior & guarantees (concise)
+## 7) Behavior & guarantees (concise)
 
 * **No breaking changes**: original behavior remains intact.
 * **O(1) hot reads** after initial load.
@@ -215,10 +224,10 @@ Existing methods like `keys()` remain untouched.
 
 ---
 
-## 9) Tiny test checklist
+## 8) Tiny test checklist
 
 * Cache hits speed up repeated `getItem`.
-* Local "change" events fire registered listeners via addEventListener.
+ [1]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget?utm_source=chatgpt.com "EventTarget - MDN"
 * Cross-tab behavior is covered in middleware tests (see sync middleware doc).
 * LWW logic handles concurrent writes.
 
