@@ -20,6 +20,25 @@ type CacheEntry = { value: any; meta?: any; version: number };
 * `version` is a simple **LWW** guard (`Date.now()` at write time).
 * No public exposure; purely internal.
 
+### Updated MiddlewareContext
+
+Add the optional `fromCache` property and cache invalidation methods to the existing MiddlewareContext interface:
+
+```ts
+interface MiddlewareContext {
+  operation: 'get' | 'set' | 'remove' | 'clear' | 'keys' | 'length' | 'getItemMeta';
+  key?: string;
+  value?: any;
+  meta?: VaultItemMeta | null;
+  fromCache?: boolean; // NEW: true when data comes from cache, false for fresh DB reads
+
+  // NEW: Cache invalidation methods available to middleware
+  invalidateCache?: (key: string) => void;
+  vaultInstance?: any; // Reference to vault instance for operations
+  // ... other existing properties
+}
+```
+
 ---
 
 ## 2) Private fields (bus, cache)
@@ -107,9 +126,8 @@ private __cacheSet(key: string, value: any, meta: any | null, version?: number) 
   return v;
 }
 
-private __cacheGet<T>(key: string): T | undefined {
-  const hit = this.__cache.get(key);
-  return hit ? (hit.value as T) : undefined;
+private __cacheGet(key: string): CacheEntry | undefined {
+  return this.__cache.get(key);
 }
 
 private __cacheDelete(key: string) {
@@ -136,42 +154,55 @@ private __cacheClear(prefix?: string) {
 
 ```ts
 public async getItem<T = unknown>(key: string): Promise<T | null | undefined> {
-  const context: MiddlewareContext = { operation: 'get', key };
-  if (this.__cache.has(key)) {
-    return this.__cacheGet<T>(key) as any;
+  const context: MiddlewareContext = { operation: 'get', key, fromCache: true };
+
+  // Check cache first - use cached data to avoid DB hit
+  let record = this.__cache.get(key);
+  if (!record) {
+    // Cache miss - read from DB
+    const dbRecord = await this.do<VaultItem<T>>('readonly', store => store.get(key));
+    if (dbRecord) {
+      const version = (dbRecord as any).version ?? (dbRecord.meta?.version as number | undefined) ?? Date.now();
+      // Cache the RAW data from DB (before middleware processing)
+      this.__cacheSet(key, dbRecord.value, dbRecord.meta, version);
+      record = { value: dbRecord.value, meta: dbRecord.meta, version };
+    }
+    context.fromCache = false;
   }
+
+  // Run through middleware pipeline with cached or fresh data
   return this.executeWithMiddleware(context, async () => {
-    const record = await this.do<VaultItem<T>>('readonly', store => store.get(context.key as string));
     context.meta = record?.meta ?? null;
     context.value = record == null ? null : record.value;
 
-    if (record != null) {
-      // Prefer top-level version; fall back to legacy meta.version; else synthesize
-      const version = (record as any).version ?? (record.meta?.version as number | undefined) ?? Date.now();
-      this.__cacheSet(key, record.value, record.meta, version);
-    }
-    return record == null ? null : record.value;
+    // Provide cache invalidation method to middleware
+    context.invalidateCache = (key: string) => this.__cacheDelete(key);
+    context.vaultInstance = this;
+
+    // No DB operation needed - return processed value
+    return context.value;
   });
 }
 ```
 
-No mutation; safe because IndexedDB uses structured clone. ([Chrome for Developers][3], [MDN Web Docs][10])
+No mutation; safe because IndexedDB uses structured clone. Cache stores raw DB data and always runs middleware pipeline to maintain security and functionality (encryption, expiration, validation). Middleware can optimize using the optional `context.fromCache` hint.
 
 ### b) `setItem`
 
 ```ts
 public async setItem<T = unknown>(key: string, value: T, meta: VaultItemMeta | null = null): Promise<void> {
-  const version = Date.now(); // new write => new version; durable across reloads
-  const nextMeta = meta;      // do not inject version into meta; preserve null as null
-  const context: MiddlewareContext = { operation: 'set', key, value, meta: nextMeta };
+  const version = Date.now();
+  const context: MiddlewareContext = { operation: 'set', key, value, meta };
 
   return this.executeWithMiddleware(context, async () => {
     await this.do('readwrite', store => store.put({
       key: context.key as string,
       value: context.value as T,
-      meta: context.meta as any,     // can be null
-      version                         // top-level persisted field
+      meta: context.meta as any,
+      version
     } as any));
+
+    // Cache the RAW values that were stored (post-middleware processing)
     this.__cacheSet(key, context.value, context.meta, version);
     this.__emit({ op: "set", key, meta: context.meta, version });
   });
@@ -218,13 +249,96 @@ public async clear(confirm?: boolean): Promise<void> {
 ## 7) Behavior & guarantees (concise)
 
 * **No breaking changes**: original behavior remains intact.
-* **O(1) hot reads** after initial load.
+* **O(1) hot reads** after initial load by caching raw DB data and eliminating IndexedDB I/O.
+* **Middleware integrity** maintained - all middleware runs on every operation, with optional `context.fromCache` optimization hint.
 * **Cross‑context sync (optional)**: available via middleware; see `docs/browser-sync-middleware.md`.
-* **Conflict resolution**: LWW with `meta.version`.
 
 ---
 
-## 8) Tiny test checklist
+## 9) Middleware Cache Optimization Guide
+
+Middleware can voluntarily optimize their operations when `context.fromCache` is true. Here's how each type of middleware should handle cached data:
+
+### Encryption Middleware
+```ts
+// Must always run - no optimization possible for security
+async after(context: MiddlewareContext, result: any): Promise<any> {
+  if (context.operation === 'get') {
+    // Always decrypt, but can optimize key derivation if needed
+    if (context.fromCache) {
+      // Optional: Use cached key derivation, but still must decrypt
+    }
+    return await decrypt(result, this.config);
+  }
+  return result;
+}
+```
+
+### Expiration Middleware
+```ts
+// Can optimize expiration checks using cached metadata and invalidate cache when needed
+async after(context: MiddlewareContext, result: any): Promise<any> {
+  if (context.operation === 'get' && context.fromCache) {
+    // Fast path: check expiration from cached meta without DB access
+    const expires = context.meta?.expires;
+    if (expires && Date.now() > expires) {
+      // Item expired - invalidate cache immediately
+      if (context.invalidateCache) {
+        context.invalidateCache(context.key);
+      }
+
+      // Remove from storage and return null
+      await context.vaultInstance.removeItem(context.key);
+      return null;
+    }
+    return result; // Not expired, return cached result
+  }
+
+  // Normal path: full expiration logic for fresh DB reads
+  // ... existing implementation
+}
+```
+
+### Validation Middleware
+```ts
+// Can skip validation on cached reads - data already validated when stored
+async before(context: MiddlewareContext): Promise<MiddlewareContext> {
+  if (context.operation === 'get' && context.fromCache) {
+    // Skip validation on reads from cache - data already validated
+    return context;
+  }
+
+  // Normal path: full validation for writes and fresh reads
+  // ... existing validation logic
+}
+```
+
+### Audit/Logging Middleware
+```ts
+// Can optimize logging for cached reads
+async after(context: MiddlewareContext, result: any): Promise<any> {
+  if (context.operation === 'get' && context.fromCache) {
+    // Optional: Log cache hit instead of full read operation
+    this.logCacheHit(context.key);
+  } else {
+    // Normal logging for writes and cache misses
+    this.logOperation(context);
+  }
+  return result;
+}
+```
+
+### General Guidelines:
+- **Security-critical middleware** (encryption): Must always run fully
+- **Data validation middleware**: Can skip on cached reads (already validated)
+- **Expiration/TTL middleware**: Can optimize using cached metadata and invalidate cache when items expire
+- **Logging/audit middleware**: Can differentiate between cache hits and DB reads
+- **Cache invalidation**: Use `context.invalidateCache(key)` when middleware removes or invalidates items
+- **Custom middleware**: Use `context.fromCache` to optimize expensive operations when safe
+
+---
+
+## 10) Tiny test checklist
 
 * Cache hits speed up repeated `getItem`.
  [1]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget?utm_source=chatgpt.com "EventTarget - MDN"
