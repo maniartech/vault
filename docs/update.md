@@ -1,17 +1,11 @@
-Absolutely—let’s integrate **cross‑tab events** into the document at the same level of detail, without altering the style or tone. Here's the expanded version, now including the new section on BroadcastChannel support and browser compatibility:
-
----
-
-# Update: Add subscribe + cache to Vault class
+# Update: Add events + cache to Vault class
 
 You want to add two features to your existing `Vault` class:
 
-* **Events:** let consumers subscribe to changes, with optional cross-context (multi‑tab/worker) fan-out.
+* **Events:** let consumers listen to changes via standard EventTarget APIs; cross‑context fan‑out is available via optional middleware.
 * **Cache:** keep a tiny in-memory snapshot of `{ key → { value, meta, version } }` to make hot `getItem` calls O(1) after first read/write.
 
 Below is a minimal design + drop-in code you can paste into your existing class. It doesn’t alter any existing method signatures or behavior—only adds new fields and methods, and touches the internals of `getItem`, `setItem`, `removeItem`, `clear` to wire in the cache + local events.
-
-Note: Cross-tab synchronization is intentionally not part of the core. If you need it, see the optional Sync middleware in `docs/browser-sync-middleware.md`.
 
 ---
 
@@ -46,31 +40,44 @@ private __cache = new Map<string, CacheEntry>();
 
 ---
 
-## 3) Public subscribe APIs (non-breaking additions)
+## 3) Public event APIs (standard EventTarget)
 
-Add **two new methods**—safe, additive surface:
+Expose standard EventTarget-style methods on the instance (forwarded to the internal bus). This is additive and doesn’t change any existing method signatures.
 
 ```ts
-public subscribe(key: string, listener: (value: unknown | undefined, meta?: any) => void): () => void {
-  const handler = (e: Event) => {
-    const ev = (e as CustomEvent<ChangeEvent>).detail;
-    if (ev.key === key && (ev.op === "set" || ev.op === "remove")) {
-      const snap = this.__cache.get(key);
-      listener(snap?.value, snap?.meta);
-    }
-  };
-  this.__bus.addEventListener("change", handler);
-  return () => this.__bus.removeEventListener("change", handler);
+public addEventListener(
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions
+): void {
+  this.__bus.addEventListener(type, listener as any, options as any);
 }
 
-public subscribeAll(listener: (ev: ChangeEvent) => void): () => void {
-  const handler = (e: Event) => listener((e as CustomEvent<ChangeEvent>).detail);
-  this.__bus.addEventListener("change", handler);
-  return () => this.__bus.removeEventListener("change", handler);
+public removeEventListener(
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | EventListenerOptions
+): void {
+  this.__bus.removeEventListener(type, listener as any, options as any);
 }
+
+public dispatchEvent(event: Event): boolean {
+  return this.__bus.dispatchEvent(event);
+}
+
+// Optional DOM-like property handler for convenience
+public onchange?: (e: CustomEvent<ChangeEvent>) => void;
+
+// Usage: key-scoped listener filters by e.detail.key
+vault.addEventListener("change", (e: Event) => {
+  const ev = (e as CustomEvent<ChangeEvent>).detail;
+  if (ev.key === "profile") {
+    // handle profile updates
+  }
+});
 ```
 
-This uses **EventTarget**—small and native, with no dependencies. ([MDN Web Docs][1])
+This uses **EventTarget**—small and native. ([MDN Web Docs][1])
 
 ---
 
@@ -78,7 +85,12 @@ This uses **EventTarget**—small and native, with no dependencies. ([MDN Web Do
 
 ```ts
 private __emit(ev: ChangeEvent) {
-  this.__bus.dispatchEvent(new CustomEvent<ChangeEvent>("change", { detail: ev }));
+  const evt = new CustomEvent<ChangeEvent>("change", { detail: ev });
+  this.__bus.dispatchEvent(evt);
+  // Optional DOM-like handler
+  if (typeof this.onchange === "function") {
+    try { this.onchange(evt as any); } catch {}
+  }
 }
 ```
 
@@ -125,8 +137,10 @@ Only modify internals—no public API changes.
 ```ts
 public async getItem<T = unknown>(key: string): Promise<T | null | undefined> {
   const context: MiddlewareContext = { operation: 'get', key };
-  const cached = this.__cacheGet<T>(key);
-  if (cached !== undefined) return cached as any;
+  // BUGFIX: treat undefined values as cache hits by checking presence
+  if (this.__cache.has(key)) {
+    return this.__cacheGet<T>(key) as any;
+  }
   return this.executeWithMiddleware(context, async () => {
     const record = await this.do<VaultItem<T>>('readonly', store => store.get(context.key as string));
     context.meta = record?.meta ?? null;
@@ -147,7 +161,8 @@ No mutation; safe because IndexedDB uses structured clone. ([Chrome for Develope
 ```ts
 public async setItem<T = unknown>(key: string, value: T, meta: VaultItemMeta | null = null): Promise<void> {
   const version = (meta?.version as number) ?? Date.now();
-  const nextMeta = { ...(meta ?? null), version } as VaultItemMeta | null;
+  // BUGFIX: avoid spreading null; keep type narrow
+  const nextMeta = (meta ? { ...meta, version } : ({ version } as VaultItemMeta | null));
   const context: MiddlewareContext = { operation: 'set', key, value, meta: nextMeta };
   return this.executeWithMiddleware(context, async () => {
     await this.do('readwrite', store => store.put({ key: context.key as string, value: context.value as T, meta: context.meta as any } as any));
@@ -195,8 +210,7 @@ Existing methods like `keys()` remain untouched.
 
 * **No breaking changes**: original behavior remains intact.
 * **O(1) hot reads** after initial load.
-* **Cross‑context sync**: tiny `{ op, key, version }` broadcast ensures coherence.
-* **Browser support**: BroadcastChannel is broadly supported in modern browsers (Chrome 54+, Edge 79+, Firefox 38+, Safari 15.4+, Opera 41+). ([adocasts.com][7], [DEV Community][11], [Can I Use][9])
+* **Cross‑context sync (optional)**: available via middleware; see `docs/browser-sync-middleware.md`.
 * **Conflict resolution**: LWW with `meta.version`.
 
 ---
@@ -204,8 +218,8 @@ Existing methods like `keys()` remain untouched.
 ## 9) Tiny test checklist
 
 * Cache hits speed up repeated `getItem`.
-* Local change events fire subscribed callbacks.
-* Cross-tab broadcast works (subscribe in one, change in another).
+* Local "change" events fire registered listeners via addEventListener.
+* Cross-tab behavior is covered in middleware tests (see sync middleware doc).
 * LWW logic handles concurrent writes.
 
 ---
