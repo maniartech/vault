@@ -139,9 +139,63 @@ yarn size:check
 # Run comprehensive validation
 yarn prepublish:check
 
+# Preview what will be published
+yarn pack:preview
+yarn pack:inspect
+
 # If all checks pass, publish
 yarn publish --tag alpha
+
+# Clean up
+yarn pack:clean
 ```
+
+---
+
+## Package Preview Commands 📦
+
+These commands help you inspect and validate the package before publishing:
+
+### `yarn pack:preview`
+Creates and extracts the package tarball for inspection.
+
+```bash
+yarn pack:preview
+```
+
+**Output:**
+- `vault-storage-v2.0.0-alpha.1.tgz` - The tarball
+- `.temp/package-preview/package/` - Extracted contents
+
+### `yarn pack:list`
+Shows what files will be included (dry-run, no tarball created).
+
+```bash
+yarn pack:list
+```
+
+### `yarn pack:inspect`
+Creates package and shows detailed file listing.
+
+```bash
+yarn pack:inspect
+```
+
+### `yarn pack:size`
+Shows compressed and extracted package sizes.
+
+```bash
+yarn pack:size
+```
+
+### `yarn pack:clean`
+Removes all package preview files.
+
+```bash
+yarn pack:clean
+```
+
+**📖 Full documentation:** See `docs/PACKAGE_COMMANDS.md` for detailed usage and examples.
 
 ---
 

@@ -37,9 +37,9 @@
   "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
-  "import": "./dist/index.mini.js",
-  "require": "./dist/index.mini.js",
-  "types": "./dist/index.mini.d.ts"
+      "import": "./dist/index.mini.js",
+      "require": "./dist/index.mini.js",
+      "types": "./dist/index.mini.d.ts"
     },
     "./backup": {
       "import": "./dist/backup.js",
@@ -71,7 +71,7 @@
       "require": "./dist/vault.js",
       "types": "./dist/vault.d.ts"
     },
-  "./encrypted-vault": {
+    "./encrypted-vault": {
       "import": "./dist/encrypted-vault.js",
       "require": "./dist/encrypted-vault.js",
       "types": "./dist/encrypted-vault.d.ts"
@@ -83,7 +83,7 @@
     }
   },
   "files": [
-    "./dist/"
+    "dist/"
   ],
   "sideEffects": false,
   "scripts": {
@@ -99,7 +99,12 @@
     "size:bundle:check": "node ./scripts/gzip-and-measure.js --bundle --check",
     "watch": "node ./scripts/build.js --watch --debug",
     "prepublish:check": "node ./scripts/pre-publish.js",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "pack:preview": "yarn pack && node -e \"const fs=require('fs');const {execSync}=require('child_process');fs.mkdirSync('.temp/package-preview',{recursive:true});execSync('tar -xzf vault-storage-*.tgz -C .temp/package-preview');console.log('\\n✓ Package extracted to .temp/package-preview/package/')\"",
+    "pack:list": "npm pack --dry-run",
+    "pack:inspect": "node ./scripts/pack-inspect.js",
+    "pack:size": "node ./scripts/pack-size.js",
+    "pack:clean": "node -e \"const fs=require('fs');const glob=require('glob')||{sync:()=>[]};try{glob.sync('vault-storage-*.tgz').forEach(f=>fs.unlinkSync(f));fs.rmSync('.temp/package-preview',{recursive:true,force:true});console.log('✓ Cleaned package preview files')}catch(e){console.log('✓ No files to clean')}\""
   },
   "devDependencies": {
     "@types/jasmine": "^5.1.4",
