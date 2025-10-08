@@ -92,12 +92,13 @@
     "clean": "node ./scripts/clean.js",
     "build:types": "tsc",
     "build:vault": "node ./scripts/build.js && npm run build:types",
-  "build": "npm run clean && npm run build:vault && npm run build:types",
-  "size": "node ./scripts/gzip-and-measure.js",
-  "size:check": "node ./scripts/gzip-and-measure.js --check",
-  "size:bundle": "node ./scripts/gzip-and-measure.js --bundle",
-  "size:bundle:check": "node ./scripts/gzip-and-measure.js --bundle --check",
+    "build": "npm run clean && npm run build:vault && npm run build:types",
+    "size": "node ./scripts/gzip-and-measure.js",
+    "size:check": "node ./scripts/gzip-and-measure.js --check",
+    "size:bundle": "node ./scripts/gzip-and-measure.js --bundle",
+    "size:bundle:check": "node ./scripts/gzip-and-measure.js --bundle --check",
     "watch": "node ./scripts/build.js --watch --debug",
+    "prepublish:check": "node ./scripts/pre-publish.js",
     "prepack": "npm run build"
   },
   "devDependencies": {
