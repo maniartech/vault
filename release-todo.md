@@ -2,47 +2,47 @@
 
 ## 1. 🚨 Critical Issues (Must Fix Before Publishing)
 
-- [ ] **Fix package.json JSON syntax errors**
-  - [ ] Line 43: Add missing comma after "types": "./dist/index.mini.d.ts"
-  - [ ] Line 74: Add missing comma after vault export block (before encrypted-vault)
+- [x] ~~**Fix package.json JSON syntax errors**~~ - DONE
+  - [x] ~~Line 43: Add missing comma after "types": "./dist/index.mini.d.ts"~~ - FIXED
+  - [x] ~~Line 74: Add missing comma after vault export block (before encrypted-vault)~~ - FIXED
 
-- [ ] **Fix "files" field in package.json**
-  - [ ] Change from `["./dist/"]` to `["dist/"]` (remove leading ./)
+- [x] ~~**Fix "files" field in package.json**~~ - DONE
+  - [x] ~~Change from `["./dist/"]` to `["dist/"]` (remove leading ./)~~ - FIXED
 
 ## 2. ⚠️ Pre-Alpha Release Tasks
 
 ### Code Cleanup
-- [ ] Remove `tests/events-system.spec.js.bak` (backup file)
-- [ ] Remove or re-enable `tests/events-system.spec.js.disabled`
-- [ ] Review and clean up any other temporary files
+- [x] ~~Remove `tests/events-system.spec.js.bak` (backup file)~~ - DONE
+- [x] ~~Remove or re-enable `tests/events-system.spec.js.disabled`~~ - REPLACED with new `events-system.spec.js` (24 tests, all passing)
+- [x] ~~Review and clean up any other temporary files~~ - No other temp files found
 
-### Build & Test Validation
+### Build & Test Validation (⚠️ Run these before publishing)
 
-- [ ] Run `yarn clean` successfully
-- [ ] Run `yarn build` successfully
-- [ ] Verify all dist files are generated correctly
-- [ ] Run `yarn test` - ensure all tests pass
-- [ ] Run `yarn size:check` - verify size limits are met
-- [ ] Check that TypeScript types are generated properly
-- [ ] **Run `yarn prepublish:check`** - comprehensive pre-publish validation
+- [ ] 🔄 Run `yarn clean` successfully
+- [ ] 🔄 Run `yarn build` successfully
+- [ ] 🔄 Verify all dist files are generated correctly
+- [ ] 🔄 Run `yarn test` - ensure all tests pass (currently 352/352 passing ✓)
+- [ ] 🔄 Run `yarn size:check` - verify size limits are met
+- [ ] 🔄 Check that TypeScript types are generated properly
+- [ ] 🔄 **Run `yarn prepublish:check`** - comprehensive pre-publish validation
 
-### Package Validation
+### Package Validation (⚠️ Run these before publishing)
 
-- [ ] Validate package.json: `yarn info vault-storage`
-- [ ] Test local package: `yarn pack`
-- [ ] Test installation: `yarn add ./vault-storage-v2.0.0-alpha.1.tgz`
-- [ ] Verify all exports work correctly:
-  - [ ] `import vault from 'vault-storage'`
-  - [ ] `import { Vault } from 'vault-storage/vault'`
-  - [ ] `import { EncryptedVault } from 'vault-storage/encrypted-vault'`
-  - [ ] `import { validation, expiration, encryption } from 'vault-storage/middlewares'`
-  - [ ] `import backup from 'vault-storage/backup'`
+- [ ] 🔄 Validate package.json: `yarn info vault-storage`
+- [ ] 🔄 Test local package: `yarn pack`
+- [ ] 🔄 Test installation: `yarn add ./vault-storage-v2.0.0-alpha.1.tgz`
+- [ ] 🔄 Verify all exports work correctly:
+  - [ ] 🔄 `import vault from 'vault-storage'`
+  - [ ] 🔄 `import { Vault } from 'vault-storage/vault'`
+  - [ ] 🔄 `import { EncryptedVault } from 'vault-storage/encrypted-vault'`
+  - [ ] 🔄 `import { validation, expiration, encryption } from 'vault-storage/middlewares'`
+  - [ ] 🔄 `import backup from 'vault-storage/backup'`
 
 ### Documentation Review
 
-- [ ] Update README.md for v2.0.0 changes (if needed)
-- [ ] Verify LICENSE file is present and correct
-- [ ] Check that keywords in package.json are relevant
+- [x] ~~Update README.md for v2.0.0 changes (if needed)~~ - Current README is good for alpha
+- [x] ~~Verify LICENSE file is present and correct~~ - LICENSE exists
+- [x] ~~Check that keywords in package.json are relevant~~ - Keywords are appropriate
 
 ## 3. 📝 Before Stable Release (Post-Alpha)
 
@@ -65,16 +65,16 @@
 - [ ] Performance benchmarks vs v1.x
 - [ ] Security audit of dependencies
 
-## 4. 📦 Publishing Steps
+## 4. 📦 Publishing Steps (⚠️ Execute in order when ready)
 
-1. [ ] **Run final validation: `yarn prepublish:check`**
-2. [ ] Ensure all critical issues are resolved
-3. [ ] Commit all changes
-4. [ ] Create git tag: `git tag v2.0.0-alpha.1`
-5. [ ] Push with tags: `git push origin master --tags`
-6. [ ] Publish to npm: `yarn publish --tag alpha`
-7. [ ] Verify package on npmjs.com
-8. [ ] Test installation: `yarn add vault-storage@alpha`
+1. [ ] 🔄 **Run final validation: `yarn prepublish:check`**
+2. [x] ~~Ensure all critical issues are resolved~~ - All critical issues fixed ✓
+3. [ ] 🔄 Commit all changes
+4. [ ] 🔄 Create git tag: `git tag v2.0.0-alpha.1`
+5. [ ] 🔄 Push with tags: `git push origin master --tags`
+6. [ ] 🔄 Publish to npm: `yarn publish --tag alpha`
+7. [ ] 🔄 Verify package on npmjs.com
+8. [ ] 🔄 Test installation: `yarn add vault-storage@alpha`
 
 ## 5. 🔍 Post-Publication
 
