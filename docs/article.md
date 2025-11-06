@@ -104,25 +104,27 @@ This modular approach keeps your code clean and makes it easier to manage differ
 
 ### Secured Storage
 
-Secured storage is essential for storing sensitive data securely, such as authentication tokens or personal user data. VaultStorage provides a way to create secured storages that encrypt data before storing it.
+Secured storage is essential for storing sensitive data securely, such as authentication tokens or personal user data. VaultStorage v2.0 provides `EncryptedVault` for transparent encryption and decryption.
 
-**Creating Secured Storage:**
+**Creating Encrypted Storage:**
 
-Let's create a secured storage for storing sensitive information in the previous example file `storages.js`:
+Let's create an encrypted storage for storing sensitive information in the previous example file `storages.js`:
 
 ```javascript
 // storages.js
 import Vault from 'vault-storage/vault';
-import SecuredVault from 'vault-storage/secured-vault';
+import EncryptedVault from 'vault-storage/encrypted-vault';
 
 // Create custom storages for different purposes.
 const appStorage = new Vault("app-storage");
 const userStorage = new Vault("user-storage");
 
-// Create a secured storage with fixed credentials.
-const authStorage = new SecuredVault("secured-storage", {
+// Create an encrypted storage with fixed credentials.
+const authStorage = new EncryptedVault({
   password: "SADF@#$W$ERWESD",
-  salt: "SDF@#$%SERWESD",
+  salt: "SDF@#$%SERWESD"
+}, {
+  storageName: "secured-storage"
 });
 
 export { appStorage, userStorage, authStorage };
