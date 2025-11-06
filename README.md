@@ -3,29 +3,37 @@
 [![npm version](https://img.shields.io/npm/v/vault-storage.svg)](https://www.npmjs.com/package/vault-storage)
 [![GitHub release](https://img.shields.io/github/v/release/maniartech/vault)](https://github.com/maniartech/vault/releases)
 
-> **Note:** The `master` branch contains work for the next major release.
-> For the latest stable release, see [Releases](https://github.com/maniartech/vault/releases) or [npm](https://www.npmjs.com/package/vault-storage).
+> **Note:** Version 2.0 is a major release with a new middleware architecture.
+> For v1.x documentation, see [v1.3.4](https://github.com/maniartech/vault/tree/v1.3.4).
 
 Vault Storage is a sophisticated browser-based storage library that leverages the power
 of IndexedDB, offering significant improvements over traditional LocalStorage.
 As a high-performance, asynchronous solution for client-side storage, it
 provides an intuitive and easy-to-use API similar to local and session storage,
-increasing the capacity of the storage, and adding support for structured data,
-and support for multiple stores. It also provides a secure storage for sensitive
-data.
+with extended capabilities through a powerful middleware system.
+It supports structured data, multiple stores, automatic expiration, encryption,
+validation, and event handling—all with a micro footprint.
 
 ## Features
 
 - **Similar API**: Easy to use, similar to LocalStorage.
 - **Lightweight**: No dependencies, micro footprint
-  - Less than a KB (minified and gzipped), unsecured vault
-  - Around a KB (minified and gzipped), secured vault
-- **Multiple Stores Support**: Supports multiple stores with single api.
-- **Store Additional Meta Data**: Store additional meta data along with the item value.
-- **Encrypted Vault**: Provides a secure storage for sensitive data.
-- **Backup and Restore**: Export and import the vault storage data.
-- **Asynchronous**: Non-blocking, asynchronous API.
-- **Structured Data**: Supports structured data, including objects and arrays.
+  - Less than 1KB (minified and gzipped) - core vault
+  - Modular architecture - only include what you need
+- **Middleware System**: Extend functionality with composable middleware
+  - Encryption middleware for secure storage
+  - Validation middleware for data integrity
+  - Expiration middleware for automatic cleanup
+  - Custom middleware support
+- **EncryptedVault**: Pre-configured vault with built-in encryption
+- **Multiple Stores Support**: Supports multiple stores with single API
+- **Store Additional Meta Data**: Store additional meta data along with the item value
+- **Automatic Expiration**: Built-in TTL support with configurable cleanup strategies
+- **Event System**: Listen to storage events (set, get, delete, clear)
+- **Backup and Restore**: Export and import vault storage data
+- **Asynchronous**: Non-blocking, asynchronous API
+- **Structured Data**: Supports structured data, including objects and arrays
+- **TypeScript Support**: Full TypeScript type definitions included
 
 ## Installation
 
@@ -85,70 +93,168 @@ const userStorage = new Vault("user-storage")
 userStorage.setItem("key", "value")
 ```
 
-### Secured Storage
+### Encrypted Storage
 
-Secured storages are useful when you want to store sensitive data. It shares
-the same API but it encrypts the data before storing it in the
-storage. It uses browser's native crypto API to encrypt the data. The secured
-storage can be created using a fixed credentials or dynamic credentials (credentials
-that are generated based on the key).
+**v2.0 introduces `EncryptedVault`** - a pre-configured vault with encryption middleware.
+This is the recommended approach for storing sensitive data.
 
 ```javascript
-import SecuredVault from 'vault-storage/secured-vault';
+import EncryptedVault from 'vault-storage/encrypted-vault';
 
-// Secured storage using fixed credentials (password and salt).
-// Remember, this method is not secure as the credentials are hardcoded in the code.
-// For production, you must use dynamic credentials.
-const authStorage = new SecuredVault("auth-storage", {
-  password: "SADF@#$W$ERWESD",
-  salt: "SDF@#$%SERWESD",
+// Create an encrypted vault with fixed credentials
+const authStorage = new EncryptedVault({
+  password: "your-secret-password",
+  salt: "your-unique-salt",
 });
+
+// Usage is simple - encryption/decryption happens automatically
+await authStorage.setItem("token", "sensitive-auth-token");
+const token = await authStorage.getItem("token"); // Automatically decrypted
 
 // -----
 
-// Secured storage using dynamic credentials.
-const authStorage = new SecuredVault("auth-storage", (key) => {
-  const password = key === "token" ? "ASF@#$%QER()SDF" : "SXDFW#$%@#SDF";
-  const salt = key.startsWith("key1") ? "xxx@xxxxxxxxxx" : "yyy@yyyyyyyyyy";
+// Dynamic credentials based on key (more secure)
+const authStorage = new EncryptedVault(async (key) => {
+  // Generate different credentials per key
+  const password = await derivePasswordForKey(key);
+  const salt = await deriveSaltForKey(key);
   return { password, salt };
 });
 
-// -----
-
-// Secured storage using promise based dynamic credentials.
-const authStorage = new SecuredVault("auth-storage", async (storageKey) => {
-  return new Promise(async (resolve) => {
-    const encryptedKey = await encryptKey(storageKey)
-    const encryptedResponse = await fetchOrGenerateCredentialsFor(encryptedKey)
-    const { password, salt } = await decryptResponse(encryptedResponse)
-    resolve({ password, salt })
-  });
-});
-
-
+await authStorage.setItem("user-token", authToken);
+const token = await authStorage.getItem("user-token");
 ```
 
-Once the secured vault is setup, usage is easy and similar to the regular vault storage. To ensure that the data is stored securely, you must follow the best practices for storing the credentials. Such as:
+**Security Best Practices:**
 
-1. Use dynamic credentials for the secured storage it takes care of managing the complexity of the credentials.
-1. Use asymmetric encryption for key transmission. Encrypt sensitive keys using a public key before sending them to the server. Decrypt the keys locally using a private key.
-1. Generate and store encryption credentials using the Web Crypto API to ensure they are not accessible via JavaScript.
-1. Fetch encrypted credentials from the server instead of raw passwords and salts. Decrypt credentials locally using a pre-shared or derived key.
-1. Use CSP headers to mitigate XSS attacks
-1. Run your application in a secure context (HTTPS)
-1. Either use periodically rotate the encryption credentials or generate a unique ones for each storage key.
+1. Use dynamic credentials (key-based) for better security
+2. Never hardcode credentials in production code
+3. Use asymmetric encryption for key transmission
+4. Generate credentials using Web Crypto API
+5. Fetch encrypted credentials from server and decrypt locally
+6. Use Content Security Policy (CSP) headers
+7. Always run in HTTPS (secure context)
+8. Rotate credentials periodically or use unique credentials per key
 
-```js
-// This is how you can use the enrypted storage, authStorage, created above.
+### Middleware System (New in v2.0)
 
-// Set the values. It stores the encrypted Uint8Array in the storage
-// against the key. If you want to immediately use the value, then
-// you must use await while setting the value.
-await authStorage.setItem("token", authToken)
+Vault v2.0 introduces a powerful middleware system that allows you to extend functionality
+in a composable way. Middleware can intercept and modify operations before and after execution.
 
-// Somewhere else in the code, you can get the value using the following code.
-const authToken = await authStorage.token; // Decrypts the token from the authStorage
-                                           // and returns the plain token.
+#### Using Encryption Middleware
+
+```javascript
+import Vault from 'vault-storage/vault';
+import { encryption } from 'vault-storage/middlewares';
+
+const vault = new Vault('my-storage');
+
+// Add encryption middleware
+vault.use(encryption({
+  password: 'my-secret-password',
+  salt: 'my-salt'
+}));
+
+// All operations are now encrypted
+await vault.setItem('secret', 'sensitive data');
+```
+
+#### Using Validation Middleware
+
+```javascript
+import Vault from 'vault-storage/vault';
+import { validation } from 'vault-storage/middlewares';
+
+const vault = new Vault('my-storage');
+
+// Add validation middleware with custom validators
+vault.use(validation(
+  // Validator 1: No admin keys
+  (context) => {
+    if (context.key?.startsWith('admin_')) {
+      throw new Error('Admin keys not allowed');
+    }
+  },
+  // Validator 2: Require object values
+  (context) => {
+    if (context.operation === 'set' && typeof context.value !== 'object') {
+      throw new Error('Only objects allowed');
+    }
+  }
+));
+
+await vault.setItem('user', { name: 'John' }); // ✓ Valid
+await vault.setItem('admin_key', 'value');      // ✗ Throws error
+```
+
+#### Using Expiration Middleware
+
+```javascript
+import Vault from 'vault-storage/vault';
+import { expiration } from 'vault-storage/middlewares';
+
+const vault = new Vault('my-storage');
+
+// Add expiration middleware with proactive cleanup
+vault.use(expiration({
+  cleanupStrategy: 'proactive',
+  cleanupInterval: 60000, // Clean every minute
+}));
+
+// Set item with TTL (time-to-live)
+await vault.setItem('temp-data', 'value', {
+  ttl: 3600000 // Expires in 1 hour
+});
+
+// Or use absolute expiration
+await vault.setItem('session', 'data', {
+  expires: Date.now() + 3600000
+});
+
+// Expired items are automatically removed and return null
+setTimeout(async () => {
+  const value = await vault.getItem('temp-data'); // null if expired
+}, 3700000);
+```
+
+#### Combining Multiple Middlewares
+
+```javascript
+import Vault from 'vault-storage/vault';
+import { encryption, validation, expiration } from 'vault-storage/middlewares';
+
+const vault = new Vault('secure-storage');
+
+// Chain multiple middlewares
+vault
+  .use(validation((ctx) => {
+    if (!ctx.key) throw new Error('Key required');
+  }))
+  .use(encryption({ password: 'secret', salt: 'salt' }))
+  .use(expiration({ cleanupStrategy: 'background' }));
+
+// All middlewares are applied in order
+await vault.setItem('key', { data: 'value' }, { ttl: 3600000 });
+```
+
+#### Creating Custom Middleware
+
+```javascript
+// Custom logging middleware
+const loggingMiddleware = {
+  name: 'logging',
+  async beforeSet(context, next) {
+    console.log(`Setting ${context.key}:`, context.value);
+    await next();
+  },
+  async afterGet(context, next) {
+    const result = await next();
+    console.log(`Got ${context.key}:`, result);
+    return result;
+  }
+};
+
+vault.use(loggingMiddleware);
 ```
 
 ### Setting Values
@@ -216,6 +322,37 @@ const count = await vault.length();
 console.log(count);
 ```
 
+### Working with Events (New in v2.0)
+
+Vault v2.0 includes a built-in event system that allows you to listen to storage changes.
+
+```javascript
+import vault from 'vault-storage';
+
+// Listen to all change events
+vault.on('change', (event) => {
+  console.log(`Operation: ${event.operation}`);
+  console.log(`Key: ${event.key}`);
+  console.log(`Value:`, event.value);
+});
+
+// Listen to specific operations
+vault.on('set', (event) => {
+  console.log(`Item set: ${event.key}`);
+});
+
+vault.on('delete', (event) => {
+  console.log(`Item deleted: ${event.key}`);
+});
+
+vault.on('clear', () => {
+  console.log('Vault cleared');
+});
+
+// Set an item - triggers 'set' and 'change' events
+await vault.setItem('user', { name: 'John' });
+```
+
 ### Working with Item Meta Data
 
 You can also store meta data along with the item value. The meta data is useful
@@ -265,17 +402,37 @@ const importedData = await importData(data);
 
 ### `Vault` Class
 
-The `Vault` class is the cornerstone of our storage capabilities, providing a functionality akin to `localStorage` and `sessionStorage`. It empowers you to establish custom storage instances, offering a intuitive and user-friendly API for data storage and retrieval. Here's a rundown of the methods available in the `Vault` class:
+The `Vault` class is the foundation of the storage system, providing functionality similar to `localStorage` and `sessionStorage` with enhanced capabilities. It supports middleware, events, and advanced features.
 
 ```javascript
 import Vault from 'vault-storage/vault';
 ```
 
-- `setItem(key: string, value: any, meta: any)`: Store data in the storage.
-- `getItem(key: string)`: Retrieve data from the storage.
-- `removeItem(key: string)`: Remove data from the storage.
-- `clear()`: Clear all data from the storage.
-- `length()`: Get the count of entries in the storage.
+**Methods:**
+- `setItem(key: string, value: any, meta?: any)`: Store data in the storage
+- `getItem(key: string)`: Retrieve data from the storage
+- `removeItem(key: string)`: Remove data from the storage
+- `clear()`: Clear all data from the storage
+- `length()`: Get the count of entries in the storage
+- `getItemMeta(key: string)`: Get metadata for a specific item
+- `use(middleware)`: Add middleware to the vault (returns `this` for chaining)
+- `on(event, callback)`: Listen to vault events
+- `off(event, callback)`: Remove event listener
+
+### `EncryptedVault` Class (New in v2.0)
+
+Pre-configured `Vault` with encryption middleware built-in. Recommended for storing sensitive data.
+
+```javascript
+import EncryptedVault from 'vault-storage/encrypted-vault';
+
+const vault = new EncryptedVault({
+  password: 'secret',
+  salt: 'salt'
+});
+```
+
+Inherits all methods from `Vault` class. All data is automatically encrypted/decrypted.
 
 ### `vault` Default Instance
 
@@ -285,61 +442,176 @@ The `vault` is a default instance of the `Vault` class, providing a ready-to-use
 import vault from 'vault-storage';
 ```
 
-### `SecuredVault` Class
+### Middleware
 
-The `SecuredVault` class is a provides a secure storage for sensitive data. It encrypts the data before storing it in the storage. It uses browser's native crypto API to encrypt the data. The secured storage can be created using a fixed credentials or dynamic credentials (credentials that are generated based on the key). For more information, refer to the [usage section above](#secured-storage).
-
-### Import and Export Functions
-
-Additionally, the `vault-storage` library offers two functions for exporting and importing vault storage data:
+Middleware can be imported from `vault-storage/middlewares`:
 
 ```javascript
-import { importData, exportData } from 'vault-storage/backup';
+import { encryption, validation, expiration } from 'vault-storage/middlewares';
 ```
 
-- `exportData(vault: Vault)`: Export the vault storage data.
-- `importData(data: any)`: Import the vault storage data.
+**Available Middleware:**
+- `encryption(config, options?)`: Encrypts/decrypts data transparently
+- `validation(...validators)`: Validates operations with custom rules
+- `expiration(options?)`: Automatic expiration with configurable cleanup strategies
+
+**Cleanup Strategies for Expiration:**
+- `immediate`: Check on every get operation (default)
+- `background`: Background worker with periodic cleanup
+- `hybrid`: Combines immediate checking with background cleanup
+- `proactive`: Aggressive background cleanup with health monitoring
+
+### Backup and Restore Functions
+
+```javascript
+import { exportData, importData } from 'vault-storage/backup';
+```
+
+- `exportData(vault: Vault)`: Export vault storage data (returns Promise<any>)
+- `importData(vault: Vault, data: any)`: Import vault storage data (returns Promise<void>)
+
+**Note:** Encrypted data is exported in decrypted form. Handle with care.
 
 ## Comparing Vault storage with LocalStorage
 
-| Feature                  | Vault      | LocalStorage           |
+| Feature                  | Vault v2.0               | LocalStorage           |
 |--------------------------|--------------------------|------------------------|
 | **API Complexity**       | Simple, intuitive API    | Simple, intuitive API  |
 | **Capacity**             | Large (up to browser limit, often no less than 250MB) | Limited (5MB typical)  |
-| **Multiple Stores**      | Supports multiple stores | Single store           |
-| **Meta Data**            | Supports storing meta data along with the item value | No support for meta data |
-| **Encrypted Storage**    | Supports built-in encrypted storage | No built-in encryption support  |
-| **Data Types**           | Supports structured data, including objects and arrays | Only stores strings    |
-| **Built-in Data Import/Export** | Supports backup and restore of the vault storage | No built-in support for data import/export |
+| **Multiple Stores**      | ✅ Supports multiple stores | ❌ Single store        |
+| **Meta Data**            | ✅ Supports storing meta data | ❌ No meta data support |
+| **Encryption**           | ✅ Built-in EncryptedVault & middleware | ❌ No built-in encryption |
+| **Validation**           | ✅ Middleware-based validation | ❌ No validation       |
+| **Auto-Expiration**      | ✅ TTL with multiple cleanup strategies | ❌ No expiration      |
+| **Events**               | ✅ Built-in event system | ❌ No events (except `storage` event) |
+| **Middleware System**    | ✅ Extensible middleware architecture | ❌ Not applicable      |
+| **Data Types**           | Supports structured data, objects, arrays | Only stores strings    |
+| **Backup/Restore**       | ✅ Built-in import/export | ❌ Manual implementation needed |
 | **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
+| **TypeScript**           | ✅ Full type definitions | ✅ Basic types via @types/web |
+| **Bundle Size**          | < 1KB core, modular      | Native (0KB)           |
 
 ## The Roadmap
 
-Since the vault is baesd on IndexDB database as storage provider, it is possible
-to make it more powerful and useful. Here are some planned features and their
-implementation status.
+### ✅ Completed Features (v1.x - v2.0)
 
-### Core Features
+#### Core Features (v1.0)
+- [x] Extensible Vault class with qualities:
+  - Simple interface similar to local and session storages
+  - Supports indexers and dot notation for intuitive access
+  - Store large amounts of data
+  - Perform transactions in non-blocking asynchronous manner
+- [x] Global default vault instance for ease of use
+- [x] Support for custom databases
 
-- [x] Extensible Vault class that has following qualities `(v1.0.*)`
-  - Provides a simple interface similar to local and session storages
-  - Supports indexers and dot notation for intuitive and ergonomic access
-  - Store large amount of data
-  - Perorm transactional in non-blocking asynchronous manner
-- [x] Global default vault instance for ease of use `(v1.0.*)`
-- [x] Support custom databases `(v1.0.*)`
+#### Encryption Features (v1.1 - v2.0)
+- [x] Support for secured vault storage
+- [x] Dynamic password and salt support
+- [x] **v2.0:** EncryptedVault class with middleware-based encryption
+- [x] **v2.0:** Encryption middleware for composable encryption
 
-### Advanced Features - Encryption
+#### Advanced Features (v1.2 - v2.0)
+- [x] Support for storing and retrieving metadata along with item values
+- [x] Vault data backup and restore
+- [x] **v2.0:** Automatic expiration through `expires` and `ttl` metadata
+- [x] **v2.0:** Multiple cleanup strategies (immediate, background, hybrid, proactive)
+- [x] **v2.0:** Event system for storage changes
+- [x] **v2.0:** Validation middleware
+- [x] **v2.0:** Middleware architecture for extensibility
 
-- [x] Support for secured vault storage `(v1.1.*)`
-- [x] Support for dynamic password and salt for secured vault storage `(v1.0.*)`
+### 🚀 Planned Features (Future Releases)
 
-### Other Advanced Features
+#### Performance & Optimization
+- [ ] Query API for advanced data filtering
+- [ ] Indexing support for faster lookups
+- [ ] Batch operations optimization
+- [ ] Memory usage optimization for large datasets
 
-- [x] Support for storing and retriving meta data along with item
-      values. `(v1.2.*)`
-- [x] Support for vault data backup and restore `(v1.3.*)`
-- [x] Automatic expiration of values through `expires` meta data. `(Future)`
+#### Developer Experience
+- [ ] DevTools integration for debugging
+- [ ] Migration utilities for version upgrades
+- [ ] Schema validation middleware
+- [ ] Compression middleware
+
+#### Advanced Middleware
+- [ ] Sync middleware for cross-tab synchronization
+- [ ] Diff-change middleware for change tracking
+- [ ] Rate limiting middleware
+- [ ] Retry middleware with exponential backoff
+
+#### Platform Support
+- [ ] React hooks package (`@vault-storage/react`)
+- [ ] Vue composables package (`@vault-storage/vue`)
+- [ ] Node.js adapter for SSR/testing
+
+### 📊 Version 2.0 Highlights
+
+The v2.0 release represents a major architectural improvement:
+
+- **Middleware System**: Complete rewrite with composable middleware architecture
+- **EncryptedVault**: New class for easy encrypted storage
+- **Events**: Built-in event system for reactive applications
+- **Expiration**: Advanced auto-expiration with multiple cleanup strategies
+- **Validation**: Flexible validation middleware with custom validators
+- **TypeScript**: Comprehensive type definitions
+- **Testing**: 350+ tests with extensive coverage
+- **Documentation**: Enhanced docs with real-world examples
+
+- **Documentation**: Enhanced docs with real-world examples
+
+## Migration from v1.x to v2.0
+
+### Breaking Changes
+
+1. **SecuredVault → EncryptedVault**
+   - `SecuredVault` is deprecated (but still works for backward compatibility)
+   - Use `EncryptedVault` instead for new projects
+
+2. **Module Exports**
+   - Main export now uses ES modules
+   - Import paths have changed for better tree-shaking
+
+### Migration Guide
+
+**v1.x Code:**
+```javascript
+import SecuredVault from 'vault-storage/secured-vault';
+
+const vault = new SecuredVault('my-storage', {
+  password: 'secret',
+  salt: 'salt'
+});
+```
+
+**v2.0 Code (Recommended):**
+```javascript
+import EncryptedVault from 'vault-storage/encrypted-vault';
+
+const vault = new EncryptedVault({
+  password: 'secret',
+  salt: 'salt'
+}, {
+  storageName: 'my-storage'
+});
+```
+
+**Or use middleware approach:**
+```javascript
+import Vault from 'vault-storage/vault';
+import { encryption } from 'vault-storage/middlewares';
+
+const vault = new Vault('my-storage');
+vault.use(encryption({ password: 'secret', salt: 'salt' }));
+```
+
+### New Features in v2.0
+
+- **Middleware system** for composable functionality
+- **Event system** for reactive storage
+- **Auto-expiration** with TTL support
+- **Validation middleware** for data integrity
+- **Better TypeScript support** with full type definitions
+- **Enhanced testing** with 350+ test cases
 
 ## Contributing
 
