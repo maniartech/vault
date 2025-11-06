@@ -1,5 +1,5 @@
 /**
- * Cryptography-related types for SecuredVault
+ * Cryptography-related types for EncryptedVault
  */
 
 /**
@@ -21,8 +21,8 @@ export type EncryptionCredentialProvider = (key: string) => Promise<EncryptionCr
  * Configuration for encryption that can be a credential object,
  * a function that provides credentials, or null for no encryption
  */
-export type EncryptionConfig = 
-  | EncryptionCredential 
+export type EncryptionConfig =
+  | EncryptionCredential
   | EncryptionCredentialProvider
   | null;
 
@@ -34,24 +34,6 @@ export interface CryptoResult {
   data: ArrayBuffer;
   /** The initialization vector used for encryption */
   iv: Uint8Array;
-}
-
-/**
- * Configuration options specific to SecuredVault
- */
-export interface SecuredVaultOptions {
-  /** Name of the storage database */
-  storageName?: string;
-  /** Encryption configuration */
-  encryptionConfig: EncryptionConfig;
-  /** Number of iterations for key derivation (default: 100000) */
-  keyDerivationIterations?: number;
-  /** Whether to enable automatic expiration handling */
-  enableExpiration?: boolean;
-  /** Interval in milliseconds for automatic cleanup of expired items */
-  cleanupInterval?: number;
-  /** Maximum number of keys to cache (default: 100) */
-  maxCachedKeys?: number;
 }
 
 /**

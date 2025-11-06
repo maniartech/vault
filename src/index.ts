@@ -16,7 +16,6 @@ export type {
   EncryptionCredentialProvider,
   EncryptionConfig,
   CryptoResult,
-  SecuredVaultOptions,
   CryptoAlgorithmConfig,
   KeyCacheEntry
 } from './types/index.js';

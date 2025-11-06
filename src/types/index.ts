@@ -1,6 +1,6 @@
 /**
  * Centralized type exports for the Vault Storage system
- * 
+ *
  * This module provides a single entry point for all type definitions
  * used throughout the vault system, ensuring consistent typing and
  * easy imports for consumers.
@@ -31,13 +31,12 @@ export {
   VaultErrorCode
 } from './errors.js';
 
-// Crypto types (for SecuredVault)
+// Crypto types (for EncryptedVault)
 export type {
   EncryptionCredential,
   EncryptionCredentialProvider,
   EncryptionConfig,
   CryptoResult,
-  SecuredVaultOptions,
   CryptoAlgorithmConfig,
   KeyCacheEntry
 } from './crypto.js';
