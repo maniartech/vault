@@ -1,7 +1,7 @@
 import EncryptedVault from "../dist/encrypted-vault.js"
 
-describe("EncryptedVault (Legacy SecuredVault Tests)", () => {
-  it("contains an EncryptedVault specs using basic encConfig", async () => {
+describe("EncryptedVault (Legacy Tests)", () => {
+  it("should work with basic encryption config", async () => {
     const vault = new EncryptedVault({
         "password": "password",
         "salt": "salt"
@@ -33,7 +33,7 @@ describe("EncryptedVault (Legacy SecuredVault Tests)", () => {
     expect(await vault.keys()).toEqual([]);
   });
 
-  it("contains an EncryptedVault specs using function based encConfig", async () => {
+  it("should work with function-based encryption config", async () => {
     const vault = new EncryptedVault(() => {
       return {
         "password": "password",
@@ -67,7 +67,7 @@ describe("EncryptedVault (Legacy SecuredVault Tests)", () => {
     expect(await vault.keys()).toEqual([]);
   });
 
-  it("contains an EncryptedVault specs using proxy based encConfig", async () => {
+  it("should work with promise-based encryption config", async () => {
     const vault = new EncryptedVault(() => {
       return new Promise((resolve) => {
         setTimeout(() => {
