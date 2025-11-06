@@ -17,8 +17,9 @@ validation, and event handling—all with a micro footprint.
 ## Features
 
 - **Similar API**: Easy to use, similar to LocalStorage.
-- **Lightweight**: No dependencies, micro footprint
-  - Less than 1KB (minified and gzipped) - core vault
+- **Lightweight**: No dependencies, tiny footprint
+  - **~1.5KB** (minified + gzipped) - core Vault class
+  - **~3KB** (minified + gzipped) - with EncryptedVault
   - Modular architecture - only include what you need
 - **Middleware System**: Extend functionality with composable middleware
   - Encryption middleware for secure storage
@@ -489,73 +490,54 @@ import { exportData, importData } from 'vault-storage/backup';
 | **Backup/Restore**       | ✅ Built-in import/export | ❌ Manual implementation needed |
 | **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
 | **TypeScript**           | ✅ Full type definitions | ✅ Basic types via @types/web |
-| **Bundle Size**          | < 1KB core, modular      | Native (0KB)           |
+| **Bundle Size**          | ~1.5-3KB, modular        | Native (0KB)           |
 
-## The Roadmap
+## What's Included in v2.0
 
-### ✅ Completed Features (v1.x - v2.0)
+Vault Storage v2.0 is **feature-complete** and **production-ready** with:
 
-#### Core Features (v1.0)
-- [x] Extensible Vault class with qualities:
-  - Simple interface similar to local and session storages
-  - Supports indexers and dot notation for intuitive access
-  - Store large amounts of data
-  - Perform transactions in non-blocking asynchronous manner
-- [x] Global default vault instance for ease of use
-- [x] Support for custom databases
+### Core Capabilities
 
-#### Encryption Features (v1.1 - v2.0)
-- [x] Support for secured vault storage
-- [x] Dynamic password and salt support
-- [x] **v2.0:** EncryptedVault class with middleware-based encryption
-- [x] **v2.0:** Encryption middleware for composable encryption
+- **Simple API** - LocalStorage-like interface with async power
+- **Multiple Stores** - Isolated storage instances
+- **Structured Data** - Objects, arrays, any JSON-serializable data
+- **Property Access** - Dot notation and indexer syntax
+- **Metadata Support** - Store additional info with any item
+- **Backup/Restore** - Export and import vault data
 
-#### Advanced Features (v1.2 - v2.0)
-- [x] Support for storing and retrieving metadata along with item values
-- [x] Vault data backup and restore
-- [x] **v2.0:** Automatic expiration through `expires` and `ttl` metadata
-- [x] **v2.0:** Multiple cleanup strategies (immediate, background, hybrid, proactive)
-- [x] **v2.0:** Event system for storage changes
-- [x] **v2.0:** Validation middleware
-- [x] **v2.0:** Middleware architecture for extensibility
+### Security & Validation
 
-### 🚀 Planned Features (Future Releases)
+- **EncryptedVault** - Pre-configured encrypted storage
+- **Encryption Middleware** - Transparent encryption/decryption
+- **Validation Middleware** - Custom data validation rules
+- **Dynamic Credentials** - Key-based encryption credentials
 
-#### Performance & Optimization
-- [ ] Query API for advanced data filtering
-- [ ] Indexing support for faster lookups
-- [ ] Batch operations optimization
-- [ ] Memory usage optimization for large datasets
+### Data Lifecycle
 
-#### Developer Experience
-- [ ] DevTools integration for debugging
-- [ ] Migration utilities for version upgrades
-- [ ] Schema validation middleware
-- [ ] Compression middleware
+- **Auto-Expiration** - TTL-based automatic cleanup
+- **Multiple Cleanup Strategies** - Immediate, background, hybrid, proactive
+- **Event System** - Listen to storage changes
+- **Metadata-Driven** - Expiration, roles, custom properties
 
-#### Advanced Middleware
-- [ ] Sync middleware for cross-tab synchronization
-- [ ] Diff-change middleware for change tracking
-- [ ] Rate limiting middleware
-- [ ] Retry middleware with exponential backoff
+### Developer Experience
 
-#### Platform Support
-- [ ] React hooks package (`@vault-storage/react`)
-- [ ] Vue composables package (`@vault-storage/vue`)
-- [ ] Node.js adapter for SSR/testing
+- **Middleware Architecture** - Composable, extensible functionality
+- **TypeScript Support** - Full type definitions included
+- **Comprehensive Testing** - 350+ tests, all passing
+- **Complete Documentation** - API reference, guides, examples
+- **Tiny Bundle** - ~1.5-3KB gzipped, modular design
 
-### 📊 Version 2.0 Highlights
+### Architecture Highlights
 
-The v2.0 release represents a major architectural improvement:
+- **Zero Dependencies** - No external packages required
+- **Asynchronous** - Non-blocking operations
+- **Browser-Native** - Leverages IndexedDB
+- **Middleware Pipeline** - before/after/error hooks
+- **Event-Driven** - Standard EventTarget API
 
-- **Middleware System**: Complete rewrite with composable middleware architecture
-- **EncryptedVault**: New class for easy encrypted storage
-- **Events**: Built-in event system for reactive applications
-- **Expiration**: Advanced auto-expiration with multiple cleanup strategies
-- **Validation**: Flexible validation middleware with custom validators
-- **TypeScript**: Comprehensive type definitions
-- **Testing**: 350+ tests with extensive coverage
-- **Documentation**: Enhanced docs with real-world examples
+---
+
+**Want to explore future possibilities?** See [Future Ideas](docs/FUTURE_IDEAS.md) for concepts being explored (not a committed roadmap).
 
 - **Documentation**: Enhanced docs with real-world examples
 
@@ -564,12 +546,16 @@ The v2.0 release represents a major architectural improvement:
 ### Breaking Changes
 
 1. **SecuredVault → EncryptedVault**
-   - `SecuredVault` is deprecated (but still works for backward compatibility)
-   - Use `EncryptedVault` instead for new projects
+   - `SecuredVault` class has been removed in v2.0
+   - Use `EncryptedVault` instead - provides the same functionality with improved architecture
 
 2. **Module Exports**
    - Main export now uses ES modules
    - Import paths have changed for better tree-shaking
+
+3. **Configuration Structure**
+   - Constructor parameters have changed to separate encryption config from options
+   - See migration examples below
 
 ### Migration Guide
 
@@ -583,7 +569,7 @@ const vault = new SecuredVault('my-storage', {
 });
 ```
 
-**v2.0 Code (Recommended):**
+**v2.0 Code:**
 ```javascript
 import EncryptedVault from 'vault-storage/encrypted-vault';
 
