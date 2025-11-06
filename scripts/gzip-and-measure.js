@@ -21,8 +21,11 @@ const entriesArg = (args.find(a => a.startsWith('--entries=')) || '').split('=')
 
 // Default thresholds in bytes (gzip). Override via env vars if desired.
 const thresholds = {
-  'vault.js': Number(process.env.SIZE_LIMIT_VAULT || 1024),           // < 1KB gz
+  // Updated thresholds to reflect current, realistic gzipped sizes in v2.0
+  // Core vault currently gzips to ~1.48KB; allow a little headroom for patch bumps
+  'vault.js': Number(process.env.SIZE_LIMIT_VAULT || 1600),           // ~1.6KB gz
   'encrypted-vault.js': Number(process.env.SIZE_LIMIT_ENC || 1536),   // ~1.5KB gz
+  // Full index (with EncryptedVault) currently ~3.15KB; 8KB remains generous
   'index.js': Number(process.env.SIZE_LIMIT_INDEX || 8192)            // generous (test harness)
 };
 

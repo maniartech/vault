@@ -1,268 +1,326 @@
-# Why VaultStorage Will Make You Forget LocalStorage?
+# Why Vault Storage v2.0 Will Make You Forget LocalStorage
 
-Imagine this: You're developing a web application, and you need to store some data on the client side. LocalStorage seems like an easy and defacto storage solution, but soon you find yourself wrestling with its limitations. The storage capacity is insufficient, there's no built-in encryption for sensitive data, and handling structured data is a nightmare.
+Picture this: It's 2 AM, your coffee's gone cold, and you're debugging why your user's session data just vanished. Again. LocalStorage seemed like the obvious choice—simple, familiar, built-in. But now you're hitting the 5MB wall, wrestling with JSON.stringify() for the hundredth time, and praying nobody ever looks at your Chrome DevTools because your auth tokens are sitting there in plain text.
 
-Introducing VaultStorage - the ultimate solution for browser-based storage! This lightweight library, with a **size of less than 1KB (1.5KB with advanced features)**, offers **an API similar to LocalStorage** but with enhanced power and flexibility. Leveraging IndexedDB, VaultStorage provides a high-performance, asynchronous, and secure storage solution that is as easy to use as LocalStorage, but with added capabilities and versatility. Say goodbye to the limitations of LocalStorage and embrace the seamless experience of VaultStorage.
+There has to be a better way.
 
-## Why VaultStorage?
+**Enter Vault Storage v2.0**—the storage solution that feels as simple as LocalStorage but works like you always wished it would. At just **~1.5KB gzipped**, it's smaller than most images on your page, yet it gives you encryption, automatic expiration, validation, and a middleware system that makes Redux look complicated.
 
-As a developer building web applications, we've all been using LocalStorage for years. It's a simple and convenient tool for storing data on the client side. But as we started working on more complex projects, we quickly realized that LocalStorage has its limitations. The 5MB storage cap, the lack of support for structured data, and the absence of encryption for sensitive information and role-based access control were significant pain points. We face these challenges every day, and we knew there had to be a better way. We wanted a storage solution that could handle large amounts of data, support multiple storage units, works with structured data, and provides secure storage for sensitive information. VaultStorage was born out of this need. It's a library designed to address the shortcomings of LocalStorage while providing a simple, LocalStorage-like API. It is built to be lightweight, easy to use, and powerful, making it the perfect solution for modern web applications. It was created by developers, for developers, with the aim of making client-side storage a seamless and powerful experience.
+This isn't just another library. It's what browser storage should have been from the start.
 
-## Getting Started
+## The Problem: LocalStorage is Living in 2010
 
-Let's dive into the basics of VaultStorage, showing you how to install it, import it, and get started with your first storage operations.
+Let's be honest about LocalStorage's limitations:
 
-### Installation
+**The 5MB Wall**
+You're building a rich web app with offline support. User data, cached API responses, settings... boom, quota exceeded. Time to implement a complex cache eviction strategy or tell users to "clear their browser data."
 
-Installing VaultStorage is straightforward. You can use npm or yarn, depending on your preference:
+**Everything is a String**
+Want to store an object? `JSON.stringify()`. Want it back? `JSON.parse()`. Forgot to wrap it in a try-catch? Enjoy that runtime error. And heaven help you if someone manually edits localStorage in DevTools.
 
-```bash
-npm install vault-storage --save
-```
+**Zero Security**
+Storing auth tokens? API keys? Session data? It's all sitting there in plain text. Anyone with access to DevTools can see everything. Your security team is *not* happy.
 
-Or, if you prefer yarn:
+**Synchronous and Blocking**
+Every LocalStorage operation blocks the main thread. Store a large object during a critical user interaction? Watch your frame rate drop. Your users wonder why your app feels janky.
 
-```bash
-yarn add vault-storage
-```
+**One Storage, No Organization**
+Everything goes into one global namespace. App settings mixed with user data mixed with cached responses. Collision city. You're prefixing keys like it's 2005.
 
-With VaultStorage installed, you're ready to start leveraging its powerful features.
+We've all been there. We've all built workarounds. But what if we didn't have to?
 
-### Importing Vault
+## The Solution: Vault Storage v2.0
 
-To begin using VaultStorage in your project, simply import it. The great thing about VaultStorage is that it doesn't require any special initialization. It's ready to use right away!
+Vault Storage isn't trying to reinvent storage—it's fixing it. Here's what makes it different:
+
+### The API You Already Know (But Better)
 
 ```javascript
 import vault from 'vault-storage';
+
+// It works exactly like LocalStorage...
+vault.theme = 'dark';
+vault.settings = { notifications: true, language: 'en' };
+
+// ...but it's async (the right way)
+const theme = await vault.theme;
+const settings = await vault.settings; // Already an object!
 ```
 
-Now, you're all set to start using VaultStorage, which offers an API similar to LocalStorage but with much more flexibility and power.
+No new mental model. No documentation marathon. If you know LocalStorage, you know Vault Storage.
 
-## Using VaultStorage
-
-Using VaultStorage is very similar to using LocalStorage, but remember that VaultStorage is asynchronous, so you'll need to use `await` or handle Promises.
-
-**Setting Values:** Similar to local storage you can set values directly on the vault object. Or use `setItem` method.
+### Real Encryption (Not Security Theater)
 
 ```javascript
-// Set the values.
-vault.key1 = "value1";
-vault.key2 = "value2";
-```
-
-**Getting Values:**
-
-Since VaultStorage is asynchronous, you should use `await` or handle Promises when retrieving values.
-
-```javascript
-// Using await to get values.
-const value1 = await vault.key1; // "value1"
-const value2 = await vault.key2; // "value2"
-
-// Using Promises to get values.
-vault.key1.then(value1 => console.log(value1)); // "value1"
-vault.key2.then(value2 => console.log(value2)); // "value2"
-```
-
-### Custom Storage
-
-Imagine you're building a web application with different components requiring separate storage spaces, such as user preferences, application settings, and temporary session data. With VaultStorage, you can create custom storages to keep this data organized.
-
-**Creating Custom Storage:**
-
-Create a file named `storages.js`:
-
-```javascript
-// storages.js
-import Vault from 'vault-storage/vault';
-
-// Create custom storages for different purposes.
-const appStorage = new Vault("app-storage");
-const userStorage = new Vault("user-storage");
-
-export { appStorage, userStorage };
-```
-
-Now, you can import and use these custom storages in your application:
-
-**Using Custom Storages:**
-
-```javascript
-// Import custom storages.
-import { appStorage, userStorage } from './storages';
-
-// Using appStorage to store application settings.
-await appStorage.setItem("theme", "dark");
-console.log(await appStorage.getItem("theme")); // "dark"
-
-// Using userStorage to store user preferences.
-await userStorage.setItem("language", "en");
-console.log(await userStorage.getItem("language")); // "en"
-```
-
-This modular approach keeps your code clean and makes it easier to manage different storage needs.
-
-### Secured Storage
-
-Secured storage is essential for storing sensitive data securely, such as authentication tokens or personal user data. VaultStorage v2.0 provides `EncryptedVault` for transparent encryption and decryption.
-
-**Creating Encrypted Storage:**
-
-Let's create an encrypted storage for storing sensitive information in the previous example file `storages.js`:
-
-```javascript
-// storages.js
-import Vault from 'vault-storage/vault';
 import EncryptedVault from 'vault-storage/encrypted-vault';
 
-// Create custom storages for different purposes.
-const appStorage = new Vault("app-storage");
-const userStorage = new Vault("user-storage");
-
-// Create an encrypted storage with fixed credentials.
-const authStorage = new EncryptedVault({
-  password: "SADF@#$W$ERWESD",
-  salt: "SDF@#$%SERWESD"
-}, {
-  storageName: "secured-storage"
+const authVault = new EncryptedVault({
+  password: process.env.ENCRYPTION_KEY,
+  salt: process.env.ENCRYPTION_SALT
 });
 
-export { appStorage, userStorage, authStorage };
-```
-
-**Using Custom Storages:**
-
-Import and use these storages in your application:
-
-```javascript
-// Import storages.
-import { appStorage, userStorage, authStorage } from './storages';
-
-// Using authStorage to securely store an authentication token.
-await authStorage.setItem("token", "secureToken");
-console.log(await authStorage.getItem("token")); // "secureToken"
-```
-
-Secured storage ensures that sensitive information is stored safely, protecting it from unauthorized access.
-
-### Working with Item Meta Data
-
-Meta data can be particularly useful in applications requiring additional context for stored items, such as user roles, timestamps, or data tags. For example, you might want to restrict access to certain items based on user roles or mark items with specific attributes. Or you might need to track when an item was last updated or created. Or you might want to categorize items based on tags. The possibilities are endless! VaultStorage allows you to associate meta data with stored items, enabling you to add context and control to your storage operations.
-
-**Setting Meta Data:**
-
-```javascript
-await vault.setItem('yourKey', { any: 'data' }, {
-  roles: ['editor', 'moderator'],
+// Data is encrypted before it touches IndexedDB
+await authVault.setItem('session', {
+  token: 'super-secret-jwt',
+  userId: 12345,
+  permissions: ['admin', 'editor']
 });
+
+// Decrypted automatically when you need it
+const session = await authVault.getItem('session');
 ```
 
-**Getting Meta Data:**
+Using the Web Crypto API under the hood. AES-GCM encryption. Proper key derivation. Your security team can finally sleep at night.
+
+### Data That Knows When to Leave
 
 ```javascript
-const meta = await vault.getItemMeta('yourKey');
-console.log(`yourKey is marked for '${meta.roles}' roles!`);
+import { expirationMiddleware } from 'vault-storage/middlewares';
 
-if (user.roles.some(role => meta.roles.includes(role))) {
-  // User has access to the specified item in the vault.
+vault.use(expirationMiddleware({
+  cleanupStrategy: 'background' // or 'immediate', 'hybrid', 'proactive'
+}));
+
+// Cache API response for 1 hour
+await vault.setItem('api-cache', data, {
+  ttl: 3600000 // milliseconds
+});
+
+// It's automatically gone after an hour
+// No manual cleanup. No stale data. No memory leaks.
+```
+
+Set it and forget it. Vault Storage handles the cleanup.
+
+### Middleware: Because One Size Doesn't Fit All
+
+```javascript
+// Validate data before it's stored
+vault.use(validationMiddleware({
+  validator: (key, value) => {
+    if (key === 'email' && !value.includes('@')) {
+      throw new Error('Invalid email format');
+    }
+    return true;
+  }
+}));
+
+// Layer multiple middlewares
+vault
+  .use(validationMiddleware({ /* ... */ }))
+  .use(encryptionMiddleware({ /* ... */ }))
+  .use(expirationMiddleware({ /* ... */ }));
+```
+
+Composable, testable, predictable. Build the storage layer your app actually needs.
+
+## Real-World Wins
+
+### Before: The LocalStorage Nightmare
+
+```javascript
+// The old way 😢
+function saveUserPreferences(prefs) {
+  try {
+    const existing = localStorage.getItem('user_prefs');
+    const parsed = existing ? JSON.parse(existing) : {};
+    const updated = { ...parsed, ...prefs };
+    localStorage.setItem('user_prefs', JSON.stringify(updated));
+    localStorage.setItem('user_prefs_timestamp', Date.now().toString());
+  } catch (e) {
+    console.error('Storage failed:', e);
+    // Now what? 🤷
+  }
+}
+
+function getUserPreferences() {
+  try {
+    const prefs = localStorage.getItem('user_prefs');
+    const timestamp = localStorage.getItem('user_prefs_timestamp');
+
+    // Manual expiration check
+    if (timestamp && Date.now() - parseInt(timestamp) > 86400000) {
+      localStorage.removeItem('user_prefs');
+      localStorage.removeItem('user_prefs_timestamp');
+      return null;
+    }
+
+    return prefs ? JSON.parse(prefs) : null;
+  } catch (e) {
+    console.error('Retrieval failed:', e);
+    return null;
+  }
 }
 ```
 
-## Comparing Vault with LocalStorage
-
-In this section, we'll compare VaultStorage with LocalStorage to highlight the advantages of using VaultStorage for your web applications. We'll provide a feature comparison table and share real-world examples to illustrate its benefits.
-
-### Feature Comparison Table
-
-| Feature                  | VaultStorage         | LocalStorage           |
-|--------------------------|-----------------------|------------------------|
-| **API Complexity**       | Simple, intuitive API | Simple, intuitive API  |
-| **Capacity**             | Large (up to browser limit, often no less than 250MB) | Limited (5MB typical)  |
-| **Multiple Stores**      | Supports multiple stores | Single store           |
-| **Meta Data**            | Supports storing meta data along with the item value | No support for meta data |
-| **Encrypted Storage**    | Supports built-in secured storage | No built-in encryption support  |
-| **Data Types**           | Supports structured data, including objects and arrays | Only stores strings    |
-| **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
-
-### Real-World Examples
-
-Let's explore some real-world scenarios where VaultStorage proves advantageous over LocalStorage.
-
-#### Handling Large Amounts of Data
-
-Imagine you're developing a web-based note-taking application. Users expect to store a significant amount of notes, including text, images, and other media. With LocalStorage's 5MB limit, you'll quickly run into storage issues. VaultStorage, leveraging IndexedDB, allows you to store much larger amounts of data, ensuring your application scales with user needs.
-
-#### Separating Different Types of Data
-
-Consider a multi-user web application where you need to store user preferences, application settings, and temporary session data separately. With LocalStorage, you'd have to manage all data in a single storage space, leading to potential conflicts and complexity. VaultStorage's support for multiple storages allows you to cleanly separate different types of data:
+### After: The Vault Storage Way
 
 ```javascript
-// Import custom storages.
-import { appStorage, userStorage } from './storages';
+// The new way 😎
+import vault from 'vault-storage';
+import { expirationMiddleware } from 'vault-storage/middlewares';
 
-// Store application settings.
-await appStorage.setItem("theme", "dark");
-console.log(await appStorage.getItem("theme")); // "dark"
+vault.use(expirationMiddleware());
 
-// Store user preferences.
-await userStorage.setItem("language", "en");
-console.log(await userStorage.getItem("language")); // "en"
+async function saveUserPreferences(prefs) {
+  await vault.setItem('user_prefs', prefs, {
+    ttl: 86400000 // 24 hours
+  });
+}
+
+async function getUserPreferences() {
+  return await vault.getItem('user_prefs');
+  // That's it. Seriously.
+}
 ```
 
-#### Securely Storing Sensitive Information
+From 30 lines of error-prone code to 3 lines of clarity.
 
-In a web application handling user authentication, you need to securely store tokens and sensitive data. LocalStorage does not offer built-in encryption, making it unsuitable for such use cases. VaultStorage provides secured storage, ensuring data is encrypted and protected:
+### Multi-Tenant Applications
 
 ```javascript
-// Import secured storage.
-import { authStorage } from './storages';
+// Separate storage per user/context
+import Vault from 'vault-storage/vault';
 
-// Securely store an authentication token.
-await authStorage.setItem("token", "secureToken");
-console.log(await authStorage.getItem("token")); // "secureToken"
+class StorageManager {
+  constructor() {
+    this.vaults = new Map();
+  }
+
+  getVaultForUser(userId) {
+    if (!this.vaults.has(userId)) {
+      this.vaults.set(userId, new Vault(`user-${userId}`));
+    }
+    return this.vaults.get(userId);
+  }
+}
+
+const manager = new StorageManager();
+const userVault = manager.getVaultForUser(12345);
+
+// Complete isolation. Zero conflicts.
+await userVault.setItem('preferences', userPrefs);
 ```
 
-#### Storing Structured Data
-
-If your application needs to store complex data structures like objects and arrays, LocalStorage's string-only limitation becomes a hurdle. VaultStorage supports structured data, making it easier to work with complex data:
+### Offline-First Applications
 
 ```javascript
-// Store structured data.
-await vault.setItem('userProfile', { name: 'John Doe', age: 30, roles: ['admin', 'user'] });
+// Cache with automatic expiration
+vault.use(expirationMiddleware({ cleanupStrategy: 'proactive' }));
 
-// Retrieve structured data.
-const userProfile = await vault.getItem('userProfile');
-console.log(userProfile); // { name: 'John Doe', age: 30, roles: ['admin', 'user'] }
+async function fetchWithCache(url, options = {}) {
+  const cached = await vault.getItem(url);
+
+  if (cached) {
+    return cached; // Still fresh
+  }
+
+  const response = await fetch(url);
+  const data = await response.json();
+
+  // Cache for 5 minutes
+  await vault.setItem(url, data, {
+    ttl: 300000,
+    cached: Date.now()
+  });
+
+  return data;
+}
 ```
 
-#### Adding Meta Data for Better Data Management
+## The Numbers That Matter
 
-Meta data can provide additional context for stored items, which is useful for managing access control, adding timestamps, or categorizing data. LocalStorage does not support meta data, but VaultStorage does:
+| Feature | Vault Storage v2.0 | LocalStorage |
+|---------|-------------------|--------------|
+| **Size** | ~1.5KB gzipped | 0KB (built-in) |
+| **Capacity** | ~250MB+ (browser-dependent) | 5-10MB |
+| **Data Types** | Native objects, arrays, anything | Strings only |
+| **Encryption** | Built-in AES-GCM | None |
+| **Async** | ✓ Non-blocking | ✗ Blocks UI thread |
+| **Expiration** | Automatic with 4 strategies | Manual only |
+| **Events** | ✓ Built-in | Limited |
+| **TypeScript** | ✓ Full support | Basic |
+| **Validation** | ✓ Middleware-based | None |
 
+## Getting Started Takes 60 Seconds
+
+**1. Install it:**
+```bash
+npm install vault-storage
+```
+
+**2. Use it:**
 ```javascript
-// Store item with meta data.
-await vault.setItem('document', { title: 'Project Plan', content: '...' }, { created: '2024-05-14', tags: ['project', 'plan'] });
+import vault from 'vault-storage';
 
-// Retrieve item and meta data.
-const documentMeta = await vault.getItemMeta('document');
-console.log(`Document created on ${documentMeta.created} with tags: ${documentMeta.tags.join(', ')}`);
+// That's it. You're done.
+await vault.setItem('user', { name: 'John', role: 'admin' });
+const user = await vault.getItem('user');
 ```
 
-VaultStorage offers significant advantages over LocalStorage, making it a superior choice for modern web applications. Whether you need to handle large amounts of data, manage different types of storage, secure sensitive information, or work with complex data structures, VaultStorage provides a robust and flexible solution.
+**3. Level up (optional):**
+```javascript
+import EncryptedVault from 'vault-storage/encrypted-vault';
+import { expirationMiddleware, validationMiddleware } from 'vault-storage/middlewares';
 
-## Final Thoughts: Why VaultStorage is the Superior Choice?
+const secureVault = new EncryptedVault({
+  password: 'your-secret-key',
+  salt: 'your-unique-salt'
+});
 
-**Why VaultStorage is the superior choice?** or the title question, **Why VaultStorage Will Make You Forget LocalStorage?** Let's summarize the key benefits of Vault-Storage:
+secureVault
+  .use(validationMiddleware({ /* rules */ }))
+  .use(expirationMiddleware({ cleanupStrategy: 'hybrid' }));
 
-- **Increased Capacity**: Store significantly larger amounts of data, ensuring scalability for applications with extensive data needs.
-- **Multiple Storage Options**: Create and manage multiple storages for different data types, reducing complexity and enhancing data organization.
-- **Secure Storage**: Protect sensitive information with built-in encryption, leveraging the browser's native crypto API.
-- **Structured Data Handling**: Easily store and retrieve complex data structures like objects and arrays, improving data management and manipulation.
-- **Enhanced Performance**: Enjoy non-blocking, asynchronous operations, ensuring smooth and responsive user experiences.
-- **Meta Data Support**: Attach additional meta data to stored items, providing valuable context and improving data management.
-- **Micro < 1KB Library**: Keep your application lightweight and fast with a small library footprint.
-- **Minimal Learning Curve**: Transition seamlessly from LocalStorage to Vault-Storage with a familiar and intuitive API.
+// Production-ready storage in 10 lines
+```
 
-With these advantages, I am confident that VaultStorage will become your go-to storage solution for modern web applications. And I'm sure, once you make a switch to VaultStorage, you'll forget all about LocalStorage! Are you ready to level up your client-side storage game? Give VaultStorage a try today and experience the difference for yourself.
+## Why v2.0 Changes Everything
 
-Happy coding!
+This isn't an incremental update. Version 2.0 is a complete reimagining:
+
+**Middleware Architecture**
+Like Express.js, but for storage. Compose functionality exactly how you need it.
+
+**EncryptedVault Class**
+Security by default. No configuration paralysis.
+
+**Smart Expiration**
+Four cleanup strategies (immediate, background, hybrid, proactive) to match your performance needs.
+
+**Event System**
+React to storage changes across your app. Build reactive features without Redux.
+
+**350+ Tests**
+Battle-tested. Edge cases covered. Production-ready.
+
+**Zero Dependencies**
+No supply chain risks. No bloat. Just 1.5KB of focused functionality.
+
+## The Bottom Line
+
+LocalStorage was great... in 2010. But web applications have evolved. User expectations have evolved. Security requirements have evolved.
+
+Your storage layer should evolve too.
+
+Vault Storage v2.0 gives you:
+- The simplicity you love about LocalStorage
+- The power you need for modern apps
+- The security your users deserve
+- The performance your UX demands
+
+At 1.5KB, it's smaller than your favicon. But it'll save you hours of debugging, prevent security incidents, and make your code cleaner.
+
+**Try it for one feature.** Just one. See how it feels to write storage code that doesn't make you cringe.
+
+I think you'll forget all about LocalStorage.
+
+---
+
+**Ready to upgrade your storage game?**
+
+📦 **Install:** `npm install vault-storage`
+📖 **Docs:** [github.com/maniartech/vault](https://github.com/maniartech/vault)
+⭐ **Star:** If it saves you even one debugging session, we'd love a star on GitHub
+
+Happy coding! 🚀

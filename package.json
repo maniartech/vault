@@ -1,13 +1,13 @@
 {
   "name": "vault-storage",
   "description": "Vault, a micro yet robust browser storage library",
-  "version": "2.0.0-alpha.1",
+  "version": "2.0.0",
   "type": "module",
   "author": "ManiarTech® - Mohamed Aamir Maniar",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git@github.com:maniartech/vault.git"
+    "url": "git+ssh://git@github.com/maniartech/vault.git"
   },
   "keywords": [
     "vault",
@@ -85,6 +85,7 @@
   "files": [
     "dist/"
   ],
+
   "sideEffects": false,
   "scripts": {
     "test": "karma start karma.conf.cjs --single-run",

@@ -173,10 +173,12 @@ async function validateTests() {
     // Try to run tests
     log(`  ${gray}Running tests...${reset}`);
     try {
+      // Use inherited stdio to avoid maxBuffer overflow on large test output
       execSync('yarn test --no-color', {
         cwd: rootDir,
-        stdio: 'pipe',
-        encoding: 'utf-8'
+        stdio: 'inherit',
+        encoding: 'utf-8',
+        maxBuffer: 1024 * 1024 * 20 // 20MB safety buffer if output is piped elsewhere
       });
       passed.push('All tests passed');
     } catch (error) {
