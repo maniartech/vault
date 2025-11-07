@@ -1,5 +1,7 @@
 # Vault Storage: The Modern Alternative to LocalStorage
 
+**A 1.5KB library that brings encryption, auto-expiration, and middleware architecture to browser storage - without sacrificing the simplicity you love about LocalStorage.**
+
 ```javascript
 // LocalStorage: Simple, but limited
 localStorage.theme = 'dark';
