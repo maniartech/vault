@@ -73,6 +73,9 @@ Note: When the stored item is encrypted, the raw IndexedDB value is wrapped as `
 
 - Strings are encrypted as-is and returned as strings.
 - Non-JSON numbers like `NaN`, `Infinity`, `-Infinity` are preserved via a small wrapper to round-trip reliably.
+- Supports storing and retrieving rich data beyond strings: Objects/arrays, Dates, RegExp, Map, Set, ArrayBuffer, TypedArrays (Uint8Array, Float32Array, etc.), Blob/File, booleans, numbers, null, and undefined. BigInt values are preserved when the runtime supports `BigInt`.
+- Cyclic object graphs are not supported and will throw (JSON-compatible constraint).
+- Class instances are not preserved as instances (only their plain data is serialized). Prefer plain data objects.
 - If the credential provider returns `null` for a key, that key is stored unencrypted.
 - The middleware uses AES-GCM 256 with keys derived via PBKDF2 (SHA-256).
 - Derived keys are cached up to `maxCachedKeys` entries when caching > 0.
@@ -89,6 +92,7 @@ Note: When the stored item is encrypted, the raw IndexedDB value is wrapped as `
 - Consider limiting `maxCachedKeys` or setting it to 0 for highly sensitive contexts.
 
 ## Type references
+- Value serialization details: non-string values are serialized with lightweight type tags (e.g., Date, Map, Set, TypedArrays, Blob) to round-trip correctly through encryption.
 
 - `EncryptionCredential`, `EncryptionCredentialProvider`, `EncryptionConfig` — `vault-storage/types`
 - `EncryptionOptions` (merged into `EncryptedVaultOptions`) — encryption middleware options
