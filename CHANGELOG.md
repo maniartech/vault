@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to semantic versioning. Dates are in YYYY-MM-DD.
 
+## [2.0.1] - 2025-11-07
+
+### � Fixed
+
+- **Rich Type Support in EncryptedVault**: Fixed encryption middleware to properly support complex JavaScript types beyond JSON:
+  - **Date objects** - Preserved with exact timestamp
+  - **RegExp** - Pattern and flags maintained
+  - **Map and Set** - Full support including nested values
+  - **TypedArrays** - All typed array types (Uint8Array, Float32Array, etc.)
+  - **ArrayBuffer** - Raw binary data
+  - **Blob and File** - Binary data with type and name preservation
+  - **BigInt** - Large integer support
+  - **Special numbers** - NaN, Infinity, -Infinity
+  - **Circular reference detection** - Clear error messages for unsupported circular structures
+
+### ✅ Tests
+
+- Added comprehensive value-types test suite covering all new type support
+- 354+ tests passing (up from 350+)
+- All rich types tested in both plain Vault and EncryptedVault contexts
+
+### � Documentation
+
+- Updated `docs/api/encrypted-vault.md` with rich type support details
+- Added constraints about circular references and class instances
+- Enhanced README to highlight rich type capabilities
+
 ## [2.0.0] - 2025-11-06
 
 A major re-architecture of Vault Storage focused on extensibility, security, and developer experience.

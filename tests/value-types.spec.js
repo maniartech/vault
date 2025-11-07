@@ -62,10 +62,15 @@ describe('Value types beyond strings', () => {
     await secure.setItem('blob', blob);
     const got = await secure.getItem('blob');
     expect(got instanceof Blob).toBeTrue();
-    const text = await (async () => {
-      const buf = await got.arrayBuffer();
-      return Array.from(new Uint8Array(buf));
-    })();
+
+    // Use FileReader for compatibility (arrayBuffer() not universally supported)
+    const text = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(Array.from(new Uint8Array(reader.result)));
+      };
+      reader.readAsArrayBuffer(got);
+    });
     expect(text).toEqual([10,20,30,40]);
   });
 

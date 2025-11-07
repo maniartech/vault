@@ -150,8 +150,8 @@ describe('Encryption Middleware - Enhanced Coverage', () => {
         expect(retrieved.mapValue).toBeDefined();
 
       } catch (error) {
-        // Circular references might cause serialization to fail
-        expect(error.message).toContain('circular') || expect(error.message).toContain('Converting circular structure');
+        // Circular references cause serialization to fail
+        expect(error.message).toContain('circular structure');
       }
     });
 

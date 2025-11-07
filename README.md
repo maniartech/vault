@@ -486,7 +486,7 @@ import { exportData, importData } from 'vault-storage/backup';
 | **Auto-Expiration**      | ✅ TTL with multiple cleanup strategies | ❌ No expiration      |
 | **Events**               | ✅ Built-in event system | ❌ No events (except `storage` event) |
 | **Middleware System**    | ✅ Extensible middleware architecture | ❌ Not applicable      |
-| **Data Types**           | Supports structured data, objects, arrays | Only stores strings    |
+| **Data Types**           | Supports rich types: objects, arrays, Date, Map, Set, TypedArrays, Blob, BigInt, etc. | Only stores strings    |
 | **Backup/Restore**       | ✅ Built-in import/export | ❌ Manual implementation needed |
 | **Performance**          | Asynchronous, non-blocking | Synchronous, can block UI |
 | **TypeScript**           | ✅ Full type definitions | ✅ Basic types via @types/web |
@@ -500,7 +500,7 @@ Vault Storage v2.0 is **feature-complete** and **production-ready** with:
 
 - **Simple API** - LocalStorage-like interface with async power
 - **Multiple Stores** - Isolated storage instances
-- **Structured Data** - Objects, arrays, any JSON-serializable data
+- **Rich Data Types** - Objects, arrays, Date, Map, Set, TypedArrays, Blob, BigInt, RegExp, and more
 - **Property Access** - Dot notation and indexer syntax
 - **Metadata Support** - Store additional info with any item
 - **Backup/Restore** - Export and import vault data
@@ -523,7 +523,7 @@ Vault Storage v2.0 is **feature-complete** and **production-ready** with:
 
 - **Middleware Architecture** - Composable, extensible functionality
 - **TypeScript Support** - Full type definitions included
-- **Comprehensive Testing** - 350+ tests, all passing
+- **Comprehensive Testing** - 354+ tests passing
 - **Complete Documentation** - API reference, guides, examples
 - **Tiny Bundle** - ~1.5-3KB gzipped, modular design
 

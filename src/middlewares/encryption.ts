@@ -111,20 +111,168 @@ function encryptionMiddleware(
     }
   }
 
-  // Internal type tag for values that JSON cannot represent faithfully
-  type EncodedSpecial = { __vt: 'number'; v: 'NaN' | 'Infinity' | '-Infinity' };
-  function encodeSpecialNumber(n: number): EncodedSpecial {
-    if (Number.isNaN(n)) return { __vt: 'number', v: 'NaN' };
-    return n === Infinity ? { __vt: 'number', v: 'Infinity' } : { __vt: 'number', v: '-Infinity' };
+  // Value encoding/decoding for types that JSON can't handle
+  type VT = { __vt: string; [key: string]: any };
+
+  function isTypedArray(x: any): boolean {
+    return ArrayBuffer.isView(x) && !(x instanceof DataView);
   }
-  function decodeMaybeSpecial(val: any): any {
-    if (val && typeof val === 'object' && val.__vt === 'number') {
-      switch (val.v) {
-        case 'NaN': return NaN;
-        case 'Infinity': return Infinity;
-        case '-Infinity': return -Infinity;
+
+  async function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+    // Try modern API first
+    if (typeof (blob as any).arrayBuffer === 'function') {
+      return await (blob as any).arrayBuffer();
+    }
+    // Fallback to FileReader
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(blob);
+    });
+  }
+
+  async function encodeValue(value: any, seen = new Set<any>()): Promise<any> {
+    // Detect cycles
+    if (value && typeof value === 'object') {
+      if (seen.has(value)) {
+        throw new EncryptionError('Failed to encrypt value: circular structure detected');
+      }
+      seen.add(value);
+    }
+
+    // Primitives
+    if (value === null || value === undefined) return value;
+    const t = typeof value;
+    if (t === 'string' || t === 'boolean') return value;
+    if (t === 'number') {
+      if (Number.isNaN(value)) return { __vt: 'number', v: 'NaN' };
+      if (value === Infinity) return { __vt: 'number', v: 'Infinity' };
+      if (value === -Infinity) return { __vt: 'number', v: '-Infinity' };
+      return value;
+    }
+    if (t === 'bigint') return { __vt: 'bigint', v: value.toString() };
+    if (t === 'symbol' || t === 'function') return undefined;
+
+    // Special objects
+    if (value instanceof Date) return { __vt: 'date', v: value.toISOString() };
+    if (value instanceof RegExp) return { __vt: 'regexp', p: value.source, f: value.flags };
+    if (value instanceof ArrayBuffer) return { __vt: 'arraybuffer', v: Array.from(new Uint8Array(value)) };
+    if (isTypedArray(value)) {
+      const u8 = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+      return { __vt: 'typed', t: value.constructor.name, v: Array.from(u8) };
+    }
+    // Blob/File (needs async handling)
+    if (typeof Blob !== 'undefined' && value instanceof Blob) {
+      const ab = await blobToArrayBuffer(value);
+      const tag: any = { __vt: 'blob', v: Array.from(new Uint8Array(ab)) };
+      if (value.type) tag.type = value.type;
+      if ((value as any).name) tag.name = (value as any).name;
+      return tag;
+    }
+    if (value instanceof Map) {
+      const entries: any[] = [];
+      for (const [k, v] of value.entries()) {
+        entries.push([await encodeValue(k, seen), await encodeValue(v, seen)]);
+      }
+      return { __vt: 'map', v: entries };
+    }
+    if (value instanceof Set) {
+      const arr: any[] = [];
+      for (const v of value.values()) {
+        arr.push(await encodeValue(v, seen));
+      }
+      return { __vt: 'set', v: arr };
+    }
+
+    // Arrays
+    if (Array.isArray(value)) {
+      const result = [];
+      for (let i = 0; i < value.length; i++) {
+        result[i] = await encodeValue(value[i], seen);
+      }
+      return result;
+    }
+
+    // Plain objects
+    if (Object.prototype.toString.call(value) === '[object Object]') {
+      const result: any = {};
+      for (const k in value) {
+        if (value.hasOwnProperty(k)) {
+          result[k] = await encodeValue(value[k], seen);
+        }
+      }
+      return result;
+    }
+
+    // Fallback: try JSON (will drop functions, etc.)
+    return value;
+  }
+
+  function decodeValue(val: any): any {
+    if (val && typeof val === 'object' && val.__vt) {
+      switch (val.__vt) {
+        case 'number':
+          if (val.v === 'NaN') return NaN;
+          if (val.v === 'Infinity') return Infinity;
+          if (val.v === '-Infinity') return -Infinity;
+          return undefined;
+        case 'bigint':
+          return typeof BigInt !== 'undefined' ? BigInt(val.v) : val.v;
+        case 'date':
+          return new Date(val.v);
+        case 'regexp':
+          return new RegExp(val.p, val.f);
+        case 'arraybuffer':
+          return new Uint8Array(val.v).buffer;
+        case 'typed': {
+          const buf = new Uint8Array(val.v).buffer;
+          switch (val.t) {
+            case 'Uint8Array': return new Uint8Array(buf);
+            case 'Int8Array': return new Int8Array(buf);
+            case 'Uint16Array': return new Uint16Array(buf);
+            case 'Int16Array': return new Int16Array(buf);
+            case 'Uint32Array': return new Uint32Array(buf);
+            case 'Int32Array': return new Int32Array(buf);
+            case 'Float32Array': return new Float32Array(buf);
+            case 'Float64Array': return new Float64Array(buf);
+            default: return new Uint8Array(buf);
+          }
+        }
+        case 'blob': {
+          if (typeof Blob === 'undefined') return val; // Can't restore in non-browser
+          const u8 = new Uint8Array(val.v);
+          try {
+            // Restore File if name is present
+            if (val.name && typeof (globalThis as any).File === 'function') {
+              return new (globalThis as any).File([u8], val.name, { type: val.type || '' });
+            }
+            return new Blob([u8], { type: val.type || '' });
+          } catch {
+            return new Blob([u8]);
+          }
+        }
+        case 'map':
+          return new Map(val.v.map((e: any[]) => [decodeValue(e[0]), decodeValue(e[1])]));
+        case 'set':
+          return new Set(val.v.map((e: any) => decodeValue(e)));
       }
     }
+
+    if (Array.isArray(val)) {
+      return val.map(item => decodeValue(item));
+    }
+
+    if (val && typeof val === 'object' && Object.prototype.toString.call(val) === '[object Object]') {
+      const result: any = {};
+      for (const k in val) {
+        if (val.hasOwnProperty(k)) {
+          result[k] = decodeValue(val[k]);
+        }
+      }
+      return result;
+    }
+
     return val;
   }
 
@@ -146,11 +294,10 @@ function encryptionMiddleware(
             if (typeof value === 'string') {
               // Store raw string; we'll detect as non-JSON on decrypt and return as-is
               dataToEncrypt = value;
-            } else if (typeof value === 'number' && !Number.isFinite(value)) {
-              // Wrap special numbers so they can be faithfully restored
-              dataToEncrypt = JSON.stringify(encodeSpecialNumber(value));
             } else {
-              dataToEncrypt = JSON.stringify(value);
+              // Encode rich types and serialize to JSON
+              const encoded = await encodeValue(value);
+              dataToEncrypt = JSON.stringify(encoded);
             }
 
             const encryptedValue = await encrypt(encKey, dataToEncrypt);
@@ -192,7 +339,7 @@ function encryptionMiddleware(
               // Try to parse as JSON, fallback to string
               try {
                 const parsed = JSON.parse(decryptedValue);
-                return decodeMaybeSpecial(parsed);
+                return decodeValue(parsed);
               } catch {
                 return decryptedValue;
               }
