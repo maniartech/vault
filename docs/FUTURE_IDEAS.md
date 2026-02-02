@@ -12,20 +12,72 @@ This document contains ideas and concepts being explored for future versions of 
 
 Currently, Vault is browser-focused using IndexedDB. The idea is to abstract storage behind an adapter interface, allowing:
 
-- **Browser:** IndexedDB (current default)
-- **Node.js:** File-based or in-memory storage
-- **Deno:** Deno KV
-- **Bun:** Compatible adapters
+- **Browser:** IndexedDB (current default) + OPFS (large-scale persistent browser storage, supports multi-GB datasets)
+- **Node.js/Bun/Deno:** File-based or in-memory storage
 - **Universal:** In-memory adapter for testing
 
 **Status:** Architectural exploration
 **Related Docs:** `universal-storage.md` (design document)
 **Challenges:** Would require significant architectural changes to the core
 
+### Quality & Robustness Requirements
+
+These adapters are intended for mission-critical use cases and must meet strict requirements:
+
+- **Durability:** Atomic writes, crash-safe commits, and verified recovery on restart.
+- **Consistency:** Deterministic ordering and strict read-after-write behavior.
+- **Thread safety:** Explicit locking/transaction boundaries; no shared mutable state without guards.
+- **Data integrity:** Checksums, corruption detection, and fail-closed behavior.
+- **Security:** Auditable crypto, key rotation support, and tamper-evident logs where applicable.
+- **Performance:** Low-latency operations with clear SLO targets ($p50$, $p95$, $p99$).
+- **Testing:** Fuzzing, fault injection, soak tests, and crash-recovery test matrix across runtimes.
+
+### Single Public Adapter, Multiple Runtime Implementations
+
+Use one top-level adapter name (`file`) that works across server runtimes, while delegating to runtime-specific sub-adapters under the hood:
+
+- `file` (public): one entrypoint that detects Node/Bun/Deno at runtime
+- `file/node`: Node-specific file system implementation
+- `file/bun`: Bun-specific file system implementation
+- `file/deno`: Deno-specific file system implementation
+
+This keeps the API simple for users while isolating platform details and avoiding cross-runtime bundling issues.
+
+### Serialization & Data Format (File + OPFS)
+
+Both file and OPFS adapters share identical serialization and durability strategies to ensure consistency across platforms:
+
+**Format & Encoding:**
+- **MessagePack** for compact binary serialization (lightweight, fast, cross-platform)
+- Version header for forward compatibility
+- Per-record type markers for polymorphic data
+
+**Durability & Safety:**
+- **Write-Ahead Log (WAL):** All mutations logged before commit; enables crash recovery
+- **Checksums:** CRC32 or SHA256 per record for corruption detection
+- **Atomic commits:** Rename/swap for atomic file transitions (POSIX) or OPFS transactions
+- **Fail-closed:** Unverified/corrupted records are rejected; system reverts to last good state
+
+**Storage Quota Management (OPFS):**
+- Request persistent storage: `navigator.storage.persist()` for user consent
+- Query quota: `navigator.storage.estimate()` for available/usage bytes
+- Support multi-GB datasets (browser quota typically 50% of device storage)
+- Graceful degradation when quota exhausted
+
+**Shared Code Structure:**
+- `core/serializers/` – MessagePack encoding, checksum calculation
+- `core/wal.ts` – Write-Ahead Log protocol (format-agnostic)
+- `core/transaction.ts` – Atomic write boundaries
+- `adapters/file/` – File I/O using shared serializers
+- `adapters/opfs/` – OPFS I/O using shared serializers
+
+This design ensures byte-for-byte format compatibility: data written by file adapter can be read by OPFS and vice versa.
+
 ```typescript
 // Conceptual API
 const vault = new Vault('my-app', {
-  adapter: new FileStorageAdapter('./data')
+  adapter: 'file',
+  path: './data'
 });
 ```
 
